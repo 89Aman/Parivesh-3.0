@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>PARIVESH 3.0 | Project Proponent Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#5600b2",
+                        "background-light": "#f7f5f8",
+                        "background-dark": "#190f23",
+                    },
+                    fontFamily: {
+                        "display": ["Public Sans"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 transition-colors duration-200">
+<div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<!-- Navigation Header -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-primary/10 px-6 lg:px-40 py-4 bg-white dark:bg-background-dark/50 backdrop-blur-md sticky top-0 z-50">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-3 text-primary">
+<div class="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-2xl">eco</span>
+</div>
+<h2 class="text-slate-900 dark:text-slate-100 text-xl font-black leading-tight tracking-tight">PARIVESH 3.0</h2>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-primary text-sm font-semibold leading-normal border-b-2 border-primary pb-1" href="#">Dashboard</a>
+<a class="text-slate-600 dark:text-slate-400 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Applications</a>
+<a class="text-slate-600 dark:text-slate-400 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Reports</a>
+<a class="text-slate-600 dark:text-slate-400 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Support</a>
+</nav>
+</div>
+<div class="flex flex-1 justify-end gap-4 lg:gap-6">
+<label class="hidden sm:flex flex-col min-w-40 h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg overflow-hidden border border-primary/20">
+<div class="text-primary flex bg-primary/5 items-center justify-center px-3">
+<span class="material-symbols-outlined text-xl">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 border-none bg-primary/5 focus:ring-0 text-sm font-normal placeholder:text-slate-400" placeholder="Search application ID..." value=""/>
+</div>
+</label>
+<div class="flex gap-2">
+<button class="flex items-center justify-center rounded-lg size-10 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="flex items-center justify-center rounded-lg size-10 bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+<div class="flex items-center gap-3 pl-4 border-l border-primary/10">
+<div class="hidden lg:block text-right">
+<p class="text-xs font-bold text-slate-900 dark:text-slate-100">Vikram Singh</p>
+<p class="text-[10px] text-slate-500">Project Proponent</p>
+</div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/20 shadow-sm" data-alt="User profile picture of Vikram Singh" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB262ixWNhZrBauhYTR-A_rNh2zoKJQ5b4N_vz38EDGzNR9D5TixHWQhxgPyenOEnzerQ7s-cN6UrskGUK-JYwA5I_saaXVUneATn6l9uXVjIwsuY5Bul2J1wpSuvDvmlFon4TqyaeFkkn8GMb-kdrdPQToNiDPCaLwPob87jSA3OO_ZlXs4NYuwIRTgOevirCPmRoycfr5i7snZ2j9Wr1Qk_t3aBbnS3j5YLXdMbOYSmGfu4C7UvETIzTm0Ux2nO9usebYZJGU4Y4");'></div>
+</div>
+</div>
+</header>
+<main class="flex-1 px-4 lg:px-40 py-8">
+<!-- Welcome Section -->
+<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
+<div class="flex flex-col gap-1">
+<h1 class="text-slate-900 dark:text-slate-100 text-3xl font-black leading-tight tracking-tight">Welcome, Vikram Singh</h1>
+<p class="text-slate-500 dark:text-slate-400 text-base font-normal">Track your Environmental Clearance (EC) lifecycle and compliance from one place.</p>
+</div>
+<button class="flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-white shadow-lg shadow-primary/30 hover:bg-primary/90 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
+<span class="material-symbols-outlined text-xl">add_circle</span>
+<span class="text-sm font-bold tracking-wide uppercase">New Application</span>
+</button>
+</div>
+<!-- Stats/Overview Cards -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+<div class="bg-white dark:bg-background-dark/40 p-5 rounded-xl border border-primary/5 flex flex-col gap-2">
+<span class="text-primary material-symbols-outlined text-3xl">list_alt</span>
+<p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Applications</p>
+<h3 class="text-2xl font-black">24</h3>
+</div>
+<div class="bg-white dark:bg-background-dark/40 p-5 rounded-xl border border-primary/5 flex flex-col gap-2">
+<span class="text-amber-500 material-symbols-outlined text-3xl">pending_actions</span>
+<p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Pending EDS</p>
+<h3 class="text-2xl font-black">03</h3>
+</div>
+<div class="bg-white dark:bg-background-dark/40 p-5 rounded-xl border border-primary/5 flex flex-col gap-2">
+<span class="text-emerald-500 material-symbols-outlined text-3xl">check_circle</span>
+<p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Approved</p>
+<h3 class="text-2xl font-black">18</h3>
+</div>
+<div class="bg-white dark:bg-background-dark/40 p-5 rounded-xl border border-primary/5 flex flex-col gap-2">
+<span class="text-slate-400 material-symbols-outlined text-3xl">draft</span>
+<p class="text-slate-500 text-xs font-bold uppercase tracking-wider">Drafts</p>
+<h3 class="text-2xl font-black">03</h3>
+</div>
+</div>
+<!-- Application Management Section -->
+<div class="bg-white dark:bg-background-dark/40 rounded-xl border border-primary/10 overflow-hidden shadow-sm">
+<div class="px-6 pt-6 pb-2">
+<div class="flex items-center justify-between mb-4">
+<h2 class="text-xl font-bold text-slate-900 dark:text-slate-100">My Environmental Clearance Applications</h2>
+<div class="flex gap-2">
+<button class="flex items-center gap-1 text-xs font-bold text-primary px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+<span class="material-symbols-outlined text-sm">filter_list</span> Filter
+                                </button>
+<button class="flex items-center gap-1 text-xs font-bold text-primary px-3 py-1.5 rounded-lg bg-primary/5 border border-primary/10">
+<span class="material-symbols-outlined text-sm">download</span> Export
+                                </button>
+</div>
+</div>
+<div class="flex border-b border-primary/10 gap-8">
+<a class="border-b-2 border-primary text-primary pb-3 pt-2 text-sm font-bold tracking-wide" href="#">All Applications</a>
+<a class="border-b-2 border-transparent text-slate-500 hover:text-primary pb-3 pt-2 text-sm font-medium transition-colors" href="#">Submitted</a>
+<a class="border-b-2 border-transparent text-slate-500 hover:text-primary pb-3 pt-2 text-sm font-medium transition-colors" href="#">Pending EDS</a>
+<a class="border-b-2 border-transparent text-slate-500 hover:text-primary pb-3 pt-2 text-sm font-medium transition-colors" href="#">Drafts</a>
+</div>
+</div>
+<div class="overflow-x-auto @container">
+<table class="w-full text-left">
+<thead class="bg-primary/5 border-b border-primary/10">
+<tr>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider">Application ID</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider">Project Name</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider">Category</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider">Sector</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider">Status</th>
+<th class="px-6 py-4 text-xs font-bold uppercase text-slate-600 dark:text-slate-400 tracking-wider">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-primary/5">
+<tr class="hover:bg-primary/[0.02] transition-colors group">
+<td class="px-6 py-5 text-sm font-bold text-primary">EC/WB/IND/2023/102</td>
+<td class="px-6 py-5">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">Greenfield Cement Manufacturing</p>
+<p class="text-[10px] text-slate-400 uppercase">Unit 3 • Asansol, WB</p>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-black rounded uppercase">Category A</span>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 dark:text-slate-400">Industry-1</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-bold">
+<span class="size-1.5 rounded-full bg-emerald-500"></span> Approved
+                                        </span>
+</td>
+<td class="px-6 py-5">
+<button class="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">visibility</span> View
+                                        </button>
+</td>
+</tr>
+<tr class="hover:bg-primary/[0.02] transition-colors group">
+<td class="px-6 py-5 text-sm font-bold text-primary">EC/OR/MIN/2024/045</td>
+<td class="px-6 py-5">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">Iron Ore Expansion Project</p>
+<p class="text-[10px] text-slate-400 uppercase">Block B • Keonjhar, Odisha</p>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-black rounded uppercase">Category B</span>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 dark:text-slate-400">Mining</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold">
+<span class="size-1.5 rounded-full bg-amber-500"></span> Pending EDS
+                                        </span>
+</td>
+<td class="px-6 py-5">
+<button class="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">edit_note</span> Respond
+                                        </button>
+</td>
+</tr>
+<tr class="hover:bg-primary/[0.02] transition-colors group">
+<td class="px-6 py-5 text-sm font-bold text-primary">EC/KA/INF/2024/210</td>
+<td class="px-6 py-5">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">Tech-Park Infrastructure Dev</p>
+<p class="text-[10px] text-slate-400 uppercase">Phase 2 • Bengaluru, KA</p>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-blue-100 text-blue-700 text-[10px] font-black rounded uppercase">Category A</span>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 dark:text-slate-400">Construction</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-full bg-primary/10 text-primary text-[11px] font-bold">
+<span class="size-1.5 rounded-full bg-primary"></span> Submitted
+                                        </span>
+</td>
+<td class="px-6 py-5">
+<button class="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">visibility</span> Track
+                                        </button>
+</td>
+</tr>
+<tr class="hover:bg-primary/[0.02] transition-colors group">
+<td class="px-6 py-5 text-sm font-bold text-primary">EC/GJ/EN/2024/991</td>
+<td class="px-6 py-5">
+<p class="text-sm font-bold text-slate-900 dark:text-slate-100">50MW Hybrid Wind-Solar Plant</p>
+<p class="text-[10px] text-slate-400 uppercase">Site A • Kutch, Gujarat</p>
+</td>
+<td class="px-6 py-5">
+<span class="px-2 py-1 bg-amber-100 text-amber-700 text-[10px] font-black rounded uppercase">Category B</span>
+</td>
+<td class="px-6 py-5 text-sm text-slate-600 dark:text-slate-400">Renewable Energy</td>
+<td class="px-6 py-5">
+<span class="flex items-center gap-1.5 w-fit px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[11px] font-bold">
+<span class="size-1.5 rounded-full bg-slate-400"></span> Draft
+                                        </span>
+</td>
+<td class="px-6 py-5">
+<button class="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-lg">edit</span> Resume
+                                        </button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination -->
+<div class="flex items-center justify-between p-6 border-t border-primary/10">
+<p class="text-sm text-slate-500">Showing <span class="font-bold text-slate-900 dark:text-slate-100">1-4</span> of <span class="font-bold text-slate-900 dark:text-slate-100">24</span> applications</p>
+<div class="flex items-center gap-1">
+<button class="size-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">chevron_left</span>
+</button>
+<button class="size-8 flex items-center justify-center rounded-lg bg-primary text-white text-xs font-bold">1</button>
+<button class="size-8 flex items-center justify-center rounded-lg text-slate-600 hover:bg-primary/10 hover:text-primary transition-colors text-xs font-bold">2</button>
+<button class="size-8 flex items-center justify-center rounded-lg text-slate-600 hover:bg-primary/10 hover:text-primary transition-colors text-xs font-bold">3</button>
+<button class="size-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-primary/10 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Guidance Section -->
+<div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="bg-primary p-8 rounded-2xl relative overflow-hidden group">
+<div class="relative z-10 flex flex-col gap-4">
+<h3 class="text-white text-xl font-black">Need help with your application?</h3>
+<p class="text-white/80 text-sm leading-relaxed max-w-sm">Access our comprehensive guide for Environmental Clearance documentation and compliance standards.</p>
+<button class="w-fit bg-white text-primary px-5 py-2.5 rounded-lg text-sm font-bold uppercase tracking-wide hover:bg-primary-light transition-colors">View Guidelines</button>
+</div>
+<span class="material-symbols-outlined absolute -bottom-6 -right-6 text-[120px] text-white/10 group-hover:scale-110 transition-transform">menu_book</span>
+</div>
+<div class="bg-white dark:bg-background-dark/40 border border-primary/10 p-8 rounded-2xl flex flex-col gap-4">
+<h3 class="text-slate-900 dark:text-slate-100 text-xl font-black">Timeline Tracker</h3>
+<div class="flex items-center gap-4">
+<div class="size-2 rounded-full bg-emerald-500"></div>
+<div class="flex-1 h-1 bg-emerald-100 rounded-full overflow-hidden">
+<div class="w-3/4 h-full bg-emerald-500"></div>
+</div>
+<span class="text-xs font-bold text-emerald-600">75% Avg Efficiency</span>
+</div>
+<p class="text-slate-500 text-sm">Your applications are currently being processed 15 days faster than the regional average.</p>
+</div>
+</div>
+</main>
+<footer class="px-6 lg:px-40 py-10 border-t border-primary/10 text-center">
+<div class="flex flex-col md:flex-row justify-between items-center gap-6">
+<div class="flex items-center gap-2 text-primary/60">
+<span class="material-symbols-outlined">eco</span>
+<span class="text-sm font-bold tracking-tighter">PARIVESH 3.0</span>
+</div>
+<p class="text-xs text-slate-400">© 2024 Ministry of Environment, Forest and Climate Change. All Rights Reserved.</p>
+<div class="flex gap-6">
+<a class="text-xs text-slate-500 hover:text-primary" href="#">Privacy Policy</a>
+<a class="text-xs text-slate-500 hover:text-primary" href="#">Terms of Service</a>
+</div>
+</div>
+</footer>
+</div>
+</div>
+</body></html>
