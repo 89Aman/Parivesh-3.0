@@ -16,10 +16,10 @@ const ScrutinyPortalApplicationReview = () => {
 <h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight">PARIVESH 3.0</h2>
 </Link>
 <nav className="flex items-center gap-6">
-<a className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" href="#">Dashboard</a>
-<a className="text-primary text-sm font-bold border-b-2 border-primary leading-normal" href="#">Scrutiny Queue</a>
-<a className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" href="#">Meetings</a>
-<a className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" href="#">Reports</a>
+<Link className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" to="/pp/dashboard">Dashboard</Link>
+<Link className="text-primary text-sm font-bold border-b-2 border-primary leading-normal" to="/committee/scrutiny">Scrutiny Queue</Link>
+<Link className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" to="/committee/mom-editor">Meetings</Link>
+<Link className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" to="/admin/stats">Reports</Link>
 </nav>
 </div>
 <div className="flex flex-1 justify-end gap-4">

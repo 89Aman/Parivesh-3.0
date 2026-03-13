@@ -2,12 +2,289 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== TYPOGRAPHY ===== */
 @layer base {
   body {
-    font-family: "Public Sans", sans-serif;
+    font-family: "Plus Jakarta Sans", "Public Sans", sans-serif;
+    font-size: 0.9375rem;
+    font-weight: 400;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+  }
+
+  label, .label-style {
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
   }
 }
 
+/* ===== MATERIAL SYMBOLS ===== */
 .material-symbols-outlined {
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ===== SUBTLE GREEN RADIAL GRADIENT BACKGROUND ===== */
+#root {
+  min-height: 100vh;
+  background: radial-gradient(ellipse at top left, #f0fdf4 0%, #ffffff 60%);
+}
+
+/* ===== TOPBAR SCROLL SHADOW ===== */
+header {
+  transition: box-shadow 0.3s ease;
+}
+header.scrolled {
+  box-shadow: 0 1px 12px rgba(34, 197, 94, 0.08), 0 1px 3px rgba(34,197,94,0.04);
+}
+
+/* ===== BUTTON MICRO-INTERACTIONS ===== */
+button, a[class*="bg-"], [role="button"] {
+  transition: transform 0.12s ease, box-shadow 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+button:active, a[class*="bg-"]:active, [role="button"]:active {
+  transform: scale(0.98) !important;
+}
+
+/* Ripple effect */
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transform: scale(0);
+  animation: ripple-anim 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes ripple-anim {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+/* ===== FORM INPUT FOCUS ===== */
+input:focus, textarea:focus, select:focus {
+  border-color: #22c55e !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15), 0 0 8px rgba(34, 197, 94, 0.1) !important;
+  outline: none !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input, textarea, select {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* ===== FLOATING LABEL ===== */
+.floating-label-group {
+  position: relative;
+}
+.floating-label-group label {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.875rem;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+  pointer-events: none;
+  background: transparent;
+  padding: 0 0.25rem;
+}
+.floating-label-group input:focus ~ label,
+.floating-label-group input:not(:placeholder-shown) ~ label {
+  top: -0.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #22c55e;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: white;
+}
+
+/* ===== PAGE TRANSITION ===== */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.page-transition-exit {
+  opacity: 1;
+  transform: translateY(0);
+}
+.page-transition-exit-active {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+
+/* Simple fade for route changes */
+.page-fade {
+  animation: pageFadeIn 150ms ease forwards;
+}
+@keyframes pageFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== TOP PROGRESS BAR ===== */
+.top-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #22c55e, #4ade80, #86efac);
+  z-index: 9999;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+@keyframes progressPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.top-progress-bar.loading {
+  animation: progressPulse 1s ease infinite;
+}
+
+/* ===== CUSTOM SCROLLBAR (WebKit) ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #bbf7d0;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #86efac;
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #bbf7d0 transparent;
+}
+
+/* ===== TOAST NOTIFICATIONS ===== */
+.toast-container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.25rem;
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  min-width: 320px;
+  max-width: 420px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+  animation: toastSlideIn 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+}
+
+.toast.dismissing {
+  animation: toastSlideOut 0.3s ease forwards;
+}
+
+.toast-success { background: linear-gradient(135deg, #16a34a, #22c55e); }
+.toast-error   { background: linear-gradient(135deg, #dc2626, #ef4444); }
+.toast-info    { background: linear-gradient(135deg, #2563eb, #3b82f6); }
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.2);
+  border-radius: 50%;
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 0 0 0.75rem 0.75rem;
+  animation: toastProgress 4s linear forwards;
+}
+
+.toast-close {
+  margin-left: auto;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  background: none;
+  border: none;
+  color: white;
+  padding: 0;
+  line-height: 1;
+}
+.toast-close:hover { opacity: 1; }
+
+@keyframes toastSlideIn {
+  from { transform: translateX(120%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+@keyframes toastSlideOut {
+  from { transform: translateX(0);    opacity: 1; }
+  to   { transform: translateX(120%); opacity: 0; }
+}
+@keyframes toastProgress {
+  from { width: 100%; }
+  to   { width: 0%; }
+}
+
+/* ===== ADDITIONAL POLISH ===== */
+
+/* Smooth card hover lifts */
+.group:hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Link styling reset for router Links */
+a {
+  text-decoration: none;
+}
+
+/* Selection color */
+::selection {
+  background: #bbf7d0;
+  color: #14532d;
 }
