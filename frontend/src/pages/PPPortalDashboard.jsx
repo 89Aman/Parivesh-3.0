@@ -18,7 +18,7 @@ const PPPortalDashboard = () => {
 </Link>
 <nav className="hidden md:flex items-center gap-8">
 <Link className="text-primary text-sm font-semibold leading-normal border-b-2 border-primary pb-1" to="/pp/dashboard">Dashboard</Link>
-<a className="text-slate-600 dark:text-slate-400 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Applications</a>
+<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium leading-normal hover:text-primary transition-colors" to="/pp/applications">Applications</Link>
 <a className="text-slate-600 dark:text-slate-400 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Reports</a>
 <a className="text-slate-600 dark:text-slate-400 text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Support</a>
 </nav>
@@ -134,9 +134,9 @@ const PPPortalDashboard = () => {
                                         </span>
 </td>
 <td className="px-6 py-5">
-<button className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<Link to="/pp/review" className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
 <span className="material-symbols-outlined text-lg">visibility</span> View
-                                        </button>
+                                        </Link>
 </td>
 </tr>
 <tr className="hover:bg-primary/[0.02] transition-colors group">
@@ -155,9 +155,9 @@ const PPPortalDashboard = () => {
                                         </span>
 </td>
 <td className="px-6 py-5">
-<button className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<Link to="/pp/workflow" className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
 <span className="material-symbols-outlined text-lg">edit_note</span> Respond
-                                        </button>
+                                        </Link>
 </td>
 </tr>
 <tr className="hover:bg-primary/[0.02] transition-colors group">
@@ -176,9 +176,9 @@ const PPPortalDashboard = () => {
                                         </span>
 </td>
 <td className="px-6 py-5">
-<button className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<Link to="/pp/workflow" className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
 <span className="material-symbols-outlined text-lg">visibility</span> Track
-                                        </button>
+                                        </Link>
 </td>
 </tr>
 <tr className="hover:bg-primary/[0.02] transition-colors group">
@@ -197,9 +197,9 @@ const PPPortalDashboard = () => {
                                         </span>
 </td>
 <td className="px-6 py-5">
-<button className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
+<Link to="/pp/new-application" className="text-primary hover:underline text-sm font-bold flex items-center gap-1">
 <span className="material-symbols-outlined text-lg">edit</span> Resume
-                                        </button>
+                                        </Link>
 </td>
 </tr>
 </tbody>

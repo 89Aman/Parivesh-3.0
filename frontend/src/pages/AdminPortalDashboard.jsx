@@ -18,10 +18,18 @@ const AdminPortalDashboard = () => {
 </div>
 </Link>
 <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-<a className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white transition-all" href="#">
+<Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white transition-all" to="/admin/dashboard">
 <span className="material-symbols-outlined">group</span>
 <span className="font-medium">Users</span>
-</a>
+</Link>
+<Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" to="/admin/stats">
+<span className="material-symbols-outlined">dashboard_customize</span>
+<span className="font-medium">Dashboard Stats</span>
+</Link>
+<Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" to="/admin/sidebar">
+<span className="material-symbols-outlined">public</span>
+<span className="font-medium">System View</span>
+</Link>
 <a className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" href="#">
 <span className="material-symbols-outlined">dashboard_customize</span>
 <span className="font-medium">Templates</span>

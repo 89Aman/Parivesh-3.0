@@ -25,10 +25,10 @@ const EntryPortalRoleSelection = () => {
 <span className="material-symbols-outlined">help</span>
 </button>
 <div className="h-8 w-[1px] bg-primary/10 mx-2"></div>
-<button className="flex items-center gap-2 px-4 h-10 bg-primary text-white rounded-lg font-bold text-sm hover:brightness-110 transition-all shadow-lg shadow-primary/20">
+<Link to="/login" className="flex items-center gap-2 px-4 h-10 bg-primary text-white rounded-lg font-bold text-sm hover:brightness-110 transition-all shadow-lg shadow-primary/20">
 <span>Sign In</span>
 <span className="material-symbols-outlined text-sm">login</span>
-</button>
+</Link>
 </div>
 </header>
 <main className="flex-1 flex flex-col items-center justify-center px-6 py-12 md:py-20">
