@@ -13,6 +13,7 @@ from app.schemas.mom import MoMCreate, MoMUpdate, MoMOut
 from app.services.application_service import ApplicationService
 from app.services.gist_service import GistService
 from app.services.mom_service import MoMService
+from app.services.naas_service import NaaSService
 
 router = APIRouter(prefix="/mom", tags=["MoM"])
 
@@ -91,6 +92,15 @@ async def finalize_mom(
 ):
     mom = await MoMService.finalize_mom(db, app_id, current_user.id)
     await db.commit()
+    await NaaSService.emit_event(
+        "MOM_FINALIZED",
+        {
+            "application_id": str(app_id),
+            "mom_id": mom.id,
+            "actor_id": str(current_user.id),
+            "actor_role": "MOM",
+        },
+    )
     return mom
 
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
+import { Skeleton, SkeletonCard, SkeletonTableRows, SkeletonText } from '../components/Skeleton';
 import adminService from '../services/adminService';
 import { getApiErrorMessage } from '../services/api';
 
@@ -11,14 +12,6 @@ const roleStyles = {
   RQP: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
   SCRUTINY: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
   MOM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-};
-
-const roleLabels = {
-  ADMIN: 'Administrator',
-  PP: 'Project Proponent',
-  RQP: 'Registered Qualified Person',
-  SCRUTINY: 'Scrutiny Officer',
-  MOM: 'Minutes of Meeting',
 };
 
 const getInitials = (name) => {
@@ -31,13 +24,21 @@ const getInitials = (name) => {
     .slice(0, 2);
 };
 
-const formatDate = (dateString) => {
-  if (!dateString) return '—';
-  return new Intl.DateTimeFormat('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(dateString));
+const formatStatusLabel = (status) => (status || 'N/A').replaceAll('_', ' ');
+
+const RANGE_OPTIONS = [
+  { key: 'today', label: 'Today' },
+  { key: '7d', label: 'Last 7 Days' },
+  { key: '30d', label: 'Last 30 Days' },
+];
+
+const getRangeStartDate = (rangeKey) => {
+  const now = new Date();
+  if (rangeKey === 'today') {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  const days = rangeKey === '30d' ? 30 : 7;
+  return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 };
 
 const AdminPortalDashboard = () => {
@@ -46,6 +47,8 @@ const AdminPortalDashboard = () => {
   const { user, logout } = useAuth();
 
   const [users, setUsers] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [statsRange, setStatsRange] = useState('7d');
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -71,18 +74,23 @@ const AdminPortalDashboard = () => {
   useEffect(() => {
     let isActive = true;
 
-    const loadUsers = async () => {
+    const loadDashboard = async () => {
       try {
-        const data = await adminService.getUsers();
-        if (isActive) setUsers(data);
+        const [usersData, applicationsData] = await Promise.all([
+          adminService.getUsers(),
+          adminService.getApplications(),
+        ]);
+        if (!isActive) return;
+        setUsers(usersData);
+        setApplications(applicationsData);
       } catch (error) {
-        toast.error(getApiErrorMessage(error, 'Unable to load users.'));
+        toast.error(getApiErrorMessage(error, 'Unable to load admin dashboard data.'));
       } finally {
         if (isActive) setIsLoading(false);
       }
     };
 
-    loadUsers();
+    loadDashboard();
     return () => { isActive = false; };
   }, [toast]);
 
@@ -95,13 +103,6 @@ const AdminPortalDashboard = () => {
       u.roles?.some((r) => r.name.toLowerCase().includes(q))
     );
   });
-
-  const roleCounts = users.reduce((acc, u) => {
-    (u.roles || []).forEach((r) => {
-      acc[r.name] = (acc[r.name] || 0) + 1;
-    });
-    return acc;
-  }, {});
 
   const handleLogout = async () => {
     await logout();
@@ -182,60 +183,67 @@ const AdminPortalDashboard = () => {
     }
   };
 
+  const rangeStart = getRangeStartDate(statsRange);
+  const scopedApplications = applications.filter((app) => {
+    const rawDate = app.updated_at || app.created_at;
+    if (!rawDate) return false;
+    return new Date(rawDate) >= rangeStart;
+  });
+
+  const totalApplications = scopedApplications.length;
+  const totalApplicants = new Set(scopedApplications.map((a) => a.applicant_id)).size;
+  const statusCounts = scopedApplications.reduce((acc, app) => {
+    const key = app.status || 'UNKNOWN';
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const pendingApplications =
+    (statusCounts.SUBMITTED || 0) +
+    (statusCounts.UNDER_SCRUTINY || 0) +
+    (statusCounts.EDS || 0) +
+    (statusCounts.REFERRED || 0) +
+    (statusCounts.MOM_GENERATED || 0);
+  const finalizedApplications = statusCounts.FINALIZED || 0;
+  const completionRate = totalApplications
+    ? Math.round((finalizedApplications / totalApplications) * 100)
+    : 0;
+  const recentApplications = [...scopedApplications]
+    .sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at))
+    .slice(0, 4);
+
   return (
     <>
       <div className="flex h-screen overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-64 bg-white dark:bg-slate-900 border-r border-primary/10 flex flex-col shrink-0">
-          <Link to="/" className="p-6 flex items-center gap-3 border-b border-primary/5">
-            <div className="size-10 bg-primary flex items-center justify-center rounded-lg text-white">
-              <span className="material-symbols-outlined">account_balance</span>
+        <aside className="w-[280px] bg-slate-950 text-white flex flex-col shrink-0 border-r border-white/5 relative z-50">
+          <Link to="/" className="p-6 flex items-center gap-3 border-b border-white/5 group">
+            <div className="size-10 bg-primary/20 flex items-center justify-center rounded-lg text-primary transition-all group-hover:bg-primary/30 group-hover:shadow-[0_0_15px_rgba(23,207,109,0.3)]">
+              <span className="material-symbols-outlined font-icon-bold text-2xl">account_balance</span>
             </div>
             <div className="flex flex-col">
-              <h1 className="text-primary font-bold text-lg leading-tight">PARIVESH 3.0</h1>
-              <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Admin Portal</p>
+              <h1 className="text-white font-black text-lg leading-tight tracking-tight">PARIVESH 3.0</h1>
+              <p className="text-[10px] text-primary/70 uppercase tracking-widest font-bold">Admin Portal</p>
             </div>
           </Link>
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            <Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white transition-all" to="/admin/dashboard">
+
+          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
+            <Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white font-bold transition-all shadow-lg shadow-primary/20" to="/admin/dashboard">
               <span className="material-symbols-outlined">group</span>
-              <span className="font-medium">Users</span>
+              <span className="text-sm">User Management</span>
             </Link>
-            <Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" to="/admin/stats">
-              <span className="material-symbols-outlined">dashboard_customize</span>
-              <span className="font-medium">Dashboard Stats</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" to="/pp/applications">
-              <span className="material-symbols-outlined">description</span>
-              <span className="font-medium">Applications</span>
-            </Link>
-            <Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" to="/admin/sidebar">
-              <span className="material-symbols-outlined">public</span>
-              <span className="font-medium">System View</span>
-            </Link>
-            <div className="pt-4 pb-2">
-              <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Configuration</p>
-            </div>
-            <a className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" href="#">
-              <span className="material-symbols-outlined">settings</span>
-              <span className="font-medium">System Settings</span>
-            </a>
-            <a className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-primary/10 hover:text-primary transition-all" href="#">
-              <span className="material-symbols-outlined">description</span>
-              <span className="font-medium">Audit Logs</span>
-            </a>
           </nav>
-          <div className="p-4 border-t border-primary/5">
-            <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
-              <div className="size-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+
+          <div className="p-4 bg-slate-900/50 border-t border-white/5">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
+              <div className="size-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs border border-primary/20 shadow-[0_0_10px_rgba(23,207,109,0.1)]">
                 {getInitials(user?.full_name)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{user?.full_name || 'Admin'}</p>
+                <p className="text-xs font-bold text-white truncate">{user?.full_name || 'Admin'}</p>
                 <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
               </div>
-              <button className="text-slate-400 hover:text-red-500 transition-colors" onClick={handleLogout} title="Logout">
-                <span className="material-symbols-outlined text-xl">logout</span>
+              <button className="text-slate-500 hover:text-red-400 transition-colors" onClick={handleLogout} title="Logout">
+                <span className="material-symbols-outlined text-lg">logout</span>
               </button>
             </div>
           </div>
@@ -261,153 +269,242 @@ const AdminPortalDashboard = () => {
 
           <div className="p-8 space-y-8">
             {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/10 shadow-sm">
-                <div className="flex justify-between items-start">
-                  <p className="text-slate-500 text-sm font-medium">Total Users</p>
-                  <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded">Active</span>
-                </div>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100">{users.length}</p>
-                  <p className="text-slate-400 text-sm">Registered</p>
-                </div>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Performance Snapshot</h3>
+                <p className="text-sm text-slate-500">Track applications and pipeline health by timeframe.</p>
               </div>
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/10 shadow-sm">
-                <div className="flex justify-between items-start">
-                  <p className="text-slate-500 text-sm font-medium">By Role</p>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {Object.entries(roleCounts).map(([role, count]) => (
-                    <span key={role} className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${roleStyles[role] || 'bg-slate-100 text-slate-600'}`}>
-                      {role}: {count}
-                    </span>
-                  ))}
-                  {Object.keys(roleCounts).length === 0 && (
-                    <span className="text-slate-400 text-sm">No users yet</span>
-                  )}
-                </div>
-              </div>
-              <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-primary/10 shadow-sm">
-                <div className="flex justify-between items-start">
-                  <p className="text-slate-500 text-sm font-medium">Active Sessions</p>
-                </div>
-                <div className="mt-4 flex items-baseline gap-2">
-                  <p className="text-3xl font-black text-slate-900 dark:text-slate-100">{users.filter(u => u.is_active).length}</p>
-                  <p className="text-slate-400 text-sm">Active accounts</p>
-                </div>
+              <div className="inline-flex rounded-xl border border-primary/10 bg-white p-1 shadow-sm dark:bg-slate-900">
+                {RANGE_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => setStatsRange(option.key)}
+                    className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                      statsRange === option.key
+                        ? 'bg-primary text-white shadow'
+                        : 'text-slate-600 hover:bg-primary/10 hover:text-primary dark:text-slate-300'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* User Table */}
-            <div className="bg-white dark:bg-slate-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden">
-              <div className="px-6 py-5 border-b border-primary/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">All Users</h3>
-                <div className="relative w-full sm:w-80">
-                  <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
-                  <input
-                    className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-slate-900 dark:text-slate-100"
-                    placeholder="Search by name, email, or role..."
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+            {/* Premium Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+              {isLoading ? (
+                <>
+                  <SkeletonCard />
+                  <SkeletonCard />
+                  <SkeletonCard />
+                  <SkeletonCard />
+                </>
+              ) : (
+                <>
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Applications</span>
+                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{totalApplications}</span>
+                  </div>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-500 group-hover:scale-110 transition-transform duration-300">
+                    <span className="material-symbols-outlined !text-3xl">description</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                    <span className="material-symbols-outlined !text-xs">groups</span> Applicants: {totalApplicants}
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500">Realtime total proposals in system</div>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pending Review</span>
+                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{pendingApplications}</span>
+                  </div>
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-500 group-hover:scale-110 transition-transform duration-300">
+                    <span className="material-symbols-outlined !text-3xl">warning</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full">
+                    <span className="material-symbols-outlined !text-xs">report</span> EDS: {statusCounts.EDS || 0}
+                  </span>
+                </div>
+                <svg className="w-full h-8" preserveAspectRatio="none" viewBox="0 0 100 40">
+                  <path d="M0 15 Q 15 25, 30 18 T 50 30 T 75 15 T 100 35" fill="none" stroke="#ef4444" strokeLinecap="round" strokeWidth="2"></path>
+                </svg>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Finalized</span>
+                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{finalizedApplications}</span>
+                  </div>
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-500 group-hover:scale-110 transition-transform duration-300">
+                    <span className="material-symbols-outlined !text-3xl">verified</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                    <span className="material-symbols-outlined !text-xs">check_circle</span> Completion: {completionRate}%
+                  </span>
+                </div>
+                <svg className="w-full h-8" preserveAspectRatio="none" viewBox="0 0 100 40">
+                  <path d="M0 35 L 20 28 L 40 32 L 60 18 L 80 22 L 100 5" fill="none" stroke="#10b981" strokeLinecap="round" strokeWidth="2"></path>
+                </svg>
+              </div>
+
+              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Pipeline</span>
+                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{statusCounts.UNDER_SCRUTINY || 0}</span>
+                  </div>
+                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl text-amber-500 group-hover:scale-110 transition-transform duration-300">
+                    <span className="material-symbols-outlined !text-3xl">pending_actions</span>
+                  </div>
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  Submitted: {statusCounts.SUBMITTED || 0} • Referred: {statusCounts.REFERRED || 0}
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[11px] font-bold tracking-widest">
-                      <th className="px-6 py-4">User Details</th>
-                      <th className="px-6 py-4">Assigned Roles</th>
-                      <th className="px-6 py-4">Status</th>
-                      <th className="px-6 py-4">Created</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-primary/5">
-                    {isLoading ? (
-                      <tr>
-                        <td className="px-6 py-8 text-center text-sm text-slate-500" colSpan="5">
-                          <div className="flex items-center justify-center gap-3">
-                            <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                            Loading users...
-                          </div>
-                        </td>
+                </>
+              )}
+            </div>            {/* User Table */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden flex flex-col">
+                <div className="px-6 py-5 border-b border-primary/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">User Directory</h3>
+                  <div className="relative w-full sm:w-80">
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                    <input
+                      className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-slate-900 dark:text-slate-100"
+                      placeholder="Search users..."
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="overflow-x-auto flex-1">
+                  {isLoading ? (
+                    <SkeletonTableRows rows={6} cols={3} />
+                  ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[11px] font-bold tracking-widest">
+                        <th className="px-6 py-4">User Details</th>
+                        <th className="px-6 py-4">Roles</th>
+                        <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
-                    ) : filteredUsers.length === 0 ? (
-                      <tr>
-                        <td className="px-6 py-8 text-center text-sm text-slate-500" colSpan="5">
-                          {searchQuery ? 'No users match your search.' : 'No users found.'}
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredUsers.map((u) => (
-                        <tr key={u.id} className="hover:bg-primary/5 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="size-9 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-xs uppercase">
-                                {getInitials(u.full_name)}
+                    </thead>
+                    <tbody className="divide-y divide-primary/5">
+                      {filteredUsers.length === 0 ? (
+                        <tr><td colSpan="3" className="px-6 py-8 text-center text-sm text-slate-500">No users found.</td></tr>
+                      ) : (
+                        filteredUsers.map((u) => (
+                          <tr key={u.id} className="hover:bg-primary/5 transition-colors">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="size-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-[10px] uppercase">
+                                  {getInitials(u.full_name)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{u.full_name}</p>
+                                  <p className="text-[10px] text-slate-500 truncate">{u.email}</p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-bold text-slate-900 dark:text-slate-100">{u.full_name}</p>
-                                <p className="text-xs text-slate-500">{u.email}</p>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-1">
+                                {(u.roles || []).map((r) => (
+                                  <span key={r.id} className={`px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-tighter ${roleStyles[r.name] || 'bg-slate-100 text-slate-600'}`}>
+                                    {r.name}
+                                  </span>
+                                ))}
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex flex-wrap gap-1">
-                              {(u.roles || []).map((r) => (
-                                <span
-                                  key={r.id}
-                                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${roleStyles[r.name] || 'bg-slate-100 text-slate-600'}`}
-                                >
-                                  {roleLabels[r.name] || r.name}
-                                </span>
-                              ))}
-                              {(!u.roles || u.roles.length === 0) && (
-                                <span className="text-xs text-slate-400">No roles</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`size-2 rounded-full ${u.is_active ? 'bg-green-500' : 'bg-slate-300'}`}></span>
-                              <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
-                                {u.is_active ? 'Active' : 'Inactive'}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-500">
-                            {formatDate(u.created_at)}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2">
-                              <button
-                                className="text-slate-400 hover:text-primary p-1 transition-colors"
-                                title="Edit user"
-                                onClick={() => handleOpenEditModal(u)}
-                              >
-                                <span className="material-symbols-outlined text-xl">edit</span>
-                              </button>
-                              <button
-                                className="text-slate-400 hover:text-red-500 p-1 transition-colors"
-                                title="Delete user"
-                                onClick={() => handleDeleteUser(u)}
-                              >
-                                <span className="material-symbols-outlined text-xl">delete</span>
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <div className="flex justify-end gap-1">
+                                <button className="text-slate-400 hover:text-primary p-1 transition-colors" onClick={() => handleOpenEditModal(u)}><span className="material-symbols-outlined text-lg">edit</span></button>
+                                <button className="text-slate-400 hover:text-red-500 p-1 transition-colors" onClick={() => handleDeleteUser(u)}><span className="material-symbols-outlined text-lg">delete</span></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                  )}
+                </div>
+                <div className="px-6 py-3 border-t border-primary/5 text-[10px] text-slate-400 font-medium">
+                  Showing {filteredUsers.length} users
+                </div>
               </div>
-              <div className="px-6 py-4 border-t border-primary/5 flex items-center justify-between">
-                <p className="text-xs text-slate-500">
-                  Showing {filteredUsers.length} of {users.length} users
-                </p>
+
+              {/* Recent Activity Side Section */}
+              <div className="bg-white dark:bg-slate-900 rounded-xl border border-primary/10 shadow-sm p-6 flex flex-col">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight">Recent Activity</h3>
+                  <span className="material-symbols-outlined text-primary text-xl">history</span>
+                </div>
+                <div className="space-y-6 flex-1">
+                  {isLoading ? (
+                    <div className="space-y-4">
+                      <div className="flex gap-4">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1">
+                          <SkeletonText lines={2} />
+                        </div>
+                      </div>
+                      <div className="flex gap-4">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1">
+                          <SkeletonText lines={2} />
+                        </div>
+                      </div>
+                      <div className="flex gap-4">
+                        <Skeleton className="h-10 w-10 rounded-full" />
+                        <div className="flex-1">
+                          <SkeletonText lines={2} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : recentApplications.length === 0 ? (
+                    <p className="text-sm text-slate-500">No recent application activity.</p>
+                  ) : (
+                    recentApplications.map((app) => {
+                      const status = app.status || 'UNKNOWN';
+                      const isFinal = status === 'FINALIZED';
+                      const isEds = status === 'EDS';
+                      const isScrutiny = status === 'UNDER_SCRUTINY';
+                      const icon = isFinal ? 'task_alt' : isEds ? 'report' : isScrutiny ? 'pending_actions' : 'description';
+                      const color = isFinal ? 'text-emerald-500' : isEds ? 'text-red-500' : isScrutiny ? 'text-amber-500' : 'text-blue-500';
+                      const bg = isFinal ? 'bg-emerald-50 dark:bg-emerald-900/20' : isEds ? 'bg-red-50 dark:bg-red-900/20' : isScrutiny ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-blue-50 dark:bg-blue-900/20';
+
+                      return (
+                        <div key={app.id} className="flex gap-4 group cursor-default">
+                          <div className={`size-10 shrink-0 rounded-full ${bg} ${color} flex items-center justify-center transition-transform group-hover:scale-110`}>
+                            <span className="material-symbols-outlined !text-xl">{icon}</span>
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{app.project_name || `Application ${String(app.id).slice(0, 8)}`}</p>
+                            <p className="text-[10px] text-slate-500 truncate">
+                              {formatStatusLabel(status)} • #{String(app.id).slice(0, 8)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           </div>

@@ -27,7 +27,15 @@ class Payment(Base):
         nullable=False,
     )
     amount = Column(Numeric(12, 2), nullable=False)
-    status = Column(Enum(PaymentStatus), nullable=False, default=PaymentStatus.PENDING)
+    status = Column(
+        Enum(
+            PaymentStatus,
+            name="payment_status",
+            create_type=False,
+        ),
+        nullable=False,
+        default=PaymentStatus.PENDING,
+    )
     transaction_ref = Column(String, nullable=True)
     gateway_payload = Column(JSONB, nullable=True)
     initiated_at = Column(DateTime(timezone=True), nullable=True)

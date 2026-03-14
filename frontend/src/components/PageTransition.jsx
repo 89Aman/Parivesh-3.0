@@ -4,21 +4,21 @@ import { useLocation } from 'react-router-dom';
 const PageTransition = ({ children }) => {
   const location = useLocation();
   const [displayChildren, setDisplayChildren] = useState(children);
-  const [animClass, setAnimClass] = useState('page-fade');
+  const [animClass, setAnimClass] = useState('page-fade-enter');
 
   useEffect(() => {
-    const resetTimer = setTimeout(() => {
-      setAnimClass('');
+    const exitTimer = window.setTimeout(() => {
+      setAnimClass('page-fade-exit');
     }, 0);
 
-    const timer = setTimeout(() => {
+    const frame = window.requestAnimationFrame(() => {
       setDisplayChildren(children);
-      setAnimClass('page-fade');
-    }, 10);
+      setAnimClass('page-fade-enter');
+    });
 
     return () => {
-      clearTimeout(resetTimer);
-      clearTimeout(timer);
+      window.clearTimeout(exitTimer);
+      window.cancelAnimationFrame(frame);
     };
   }, [location.pathname, children]);
 

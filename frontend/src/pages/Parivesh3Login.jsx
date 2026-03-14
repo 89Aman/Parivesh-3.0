@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
 import { useAuth } from '../contexts/AuthContext';
-import { getDefaultRouteForUser } from '../services/authService';
+import { getSafeRouteForUser } from '../services/authService';
 import { getApiErrorMessage } from '../services/api';
 
 const portalCards = [
@@ -37,17 +37,41 @@ const Parivesh3Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+
+  const cooldownSeconds = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
       const from = location.state?.from?.pathname;
-      const destination = from || getDefaultRouteForUser(user);
+      const destination = getSafeRouteForUser(user, from);
       navigate(destination, { replace: true });
     }
   }, [isLoading, isAuthenticated, user, navigate, location.state]);
 
+  useEffect(() => {
+    if (cooldownSeconds <= 0) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [cooldownSeconds]);
+
   const handleEmailLogin = async (event) => {
     event.preventDefault();
+
+    if (cooldownSeconds > 0) {
+      toast.error(`Too many attempts. Try again in ${cooldownSeconds} seconds.`);
+      return;
+    }
+
     if (!email || !password) {
       toast.error('Enter both email and password.');
       return;
@@ -57,8 +81,13 @@ const Parivesh3Login = () => {
       const { user: loggedInUser } = await login(email, password);
       toast.success('Signed in successfully.');
       const from = location.state?.from?.pathname;
-      navigate(from || getDefaultRouteForUser(loggedInUser), { replace: true });
+      navigate(getSafeRouteForUser(loggedInUser, from), { replace: true });
     } catch (error) {
+      const retryAfterSeconds = error?.retryAfterSeconds;
+      if (typeof retryAfterSeconds === 'number' && retryAfterSeconds > 0) {
+        setCooldownUntil(Date.now() + retryAfterSeconds * 1000);
+        setNow(Date.now());
+      }
       toast.error(getApiErrorMessage(error, 'Unable to sign in.'));
     } finally {
       setIsSubmitting(false);
@@ -91,7 +120,11 @@ const Parivesh3Login = () => {
 
         <div className="relative z-20 flex max-w-2xl flex-col gap-8">
           <div className="flex items-center gap-4 animate-slide-up">
-            <span className="material-symbols-outlined text-5xl text-accent drop-shadow-sm lg:text-6xl">eco</span>
+            <img
+              alt="Parivesh icon"
+              className="h-16 w-16 drop-shadow-sm lg:h-20 lg:w-20"
+              src="/parivesh-brand-icon.svg"
+            />
             <h1 className="text-5xl font-black tracking-tighter text-white drop-shadow-sm lg:text-7xl">
               PARIVESH 3.0
             </h1>
@@ -118,8 +151,8 @@ const Parivesh3Login = () => {
         </div>
 
         <div className="relative z-20 mt-10 flex items-center gap-4 border-t border-white/10 pt-6 animate-slide-up" style={{ animationDelay: '0.5s' }}>
-          <div className="flex size-9 items-center justify-center rounded-lg bg-accent/20">
-            <span className="material-symbols-outlined text-lg text-accent">account_balance</span>
+          <div className="flex size-9 items-center justify-center rounded-lg bg-accent/20 p-1">
+            <img alt="Parivesh icon" className="h-full w-full object-contain" src="/parivesh-brand-icon.svg" />
           </div>
           <p className="text-xs font-medium uppercase tracking-widest text-white/60">
             Ministry of Environment, Forest and Climate Change
@@ -144,6 +177,7 @@ const Parivesh3Login = () => {
               <div className="relative">
                 <input
                   className="peer block w-full rounded-md border border-gray-200/80 bg-white/90 px-4 pb-2.5 pt-6 text-text-primary transition-all duration-200 placeholder:opacity-0 focus:border-accent focus:bg-white"
+                  autoComplete="username"
                   id="email"
                   name="email"
                   onChange={(e) => setEmail(e.target.value)}
@@ -162,6 +196,7 @@ const Parivesh3Login = () => {
               <div className="relative">
                 <input
                   className="peer block w-full rounded-md border border-gray-200/80 bg-white/90 px-4 pb-2.5 pt-6 text-text-primary transition-all duration-200 placeholder:opacity-0 focus:border-accent focus:bg-white"
+                  autoComplete="current-password"
                   id="password"
                   name="password"
                   onChange={(e) => setPassword(e.target.value)}
@@ -179,13 +214,18 @@ const Parivesh3Login = () => {
 
               <button
                 className="flex h-12 w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-primary to-primary-light font-semibold text-white shadow-lg shadow-primary/25 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/30 disabled:pointer-events-none disabled:opacity-70"
-                disabled={isSubmitting}
+                disabled={isSubmitting || cooldownSeconds > 0}
                 type="submit"
               >
                 {isSubmitting ? (
                   <>
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
                     Signing in…
+                  </>
+                ) : cooldownSeconds > 0 ? (
+                  <>
+                    Retry in {cooldownSeconds}s
+                    <span className="material-symbols-outlined text-[20px]">schedule</span>
                   </>
                 ) : (
                   <>

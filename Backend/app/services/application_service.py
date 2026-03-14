@@ -28,7 +28,8 @@ class ApplicationService:
             longitude=data.get("longitude"),
             project_area_ha=data.get("project_area_ha"),
             capacity=data.get("capacity"),
-            status=ApplicationStatus.DRAFT,
+            status=ApplicationStatus.DRAFT.value,
+
         )
         db.add(app)
         await db.flush()

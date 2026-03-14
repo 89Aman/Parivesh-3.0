@@ -1,7 +1,16 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const PremiumDarkSidebar = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="glass-sidebar flex h-full w-[260px] flex-col border-r border-accent/10 relative z-50 bg-sidebar-dark">
@@ -45,19 +54,19 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/pp/applications"
+            to="/admin/dashboard"
           >
             <span className="material-symbols-outlined text-accent">description</span>
-            <span className="text-sm font-medium">Proposals</span>
+            <span className="text-sm font-medium">Users</span>
             <span className="badge-active ml-auto rounded bg-accent/20 px-1.5 py-0.5 text-[10px] font-bold text-accent">12</span>
           </Link>
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/committee/scrutiny"
+            to="/admin/sidebar"
           >
             <span className="material-symbols-outlined text-accent">verified</span>
-            <span className="text-sm font-medium">Clearances</span>
+            <span className="text-sm font-medium">System View</span>
           </Link>
 
           <Link
@@ -70,7 +79,7 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/admin/stats"
+            to="/admin/dashboard"
           >
             <span className="material-symbols-outlined text-accent">bar_chart_4_bars</span>
             <span className="text-sm font-medium">Reports</span>
@@ -78,7 +87,7 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/pp/workflow"
+            to="/admin/dashboard"
           >
             <span className="material-symbols-outlined text-accent">pie_chart</span>
             <span className="text-sm font-medium">Analytics</span>
@@ -87,11 +96,11 @@ const PremiumDarkSidebar = () => {
 
         <div className="mt-auto flex flex-col gap-1 border-t border-accent/10 p-4">
           <Link
-            to="/pp/new-application"
+            to="/admin/dashboard"
             className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-light hover:shadow-glow-sm"
           >
             <span className="material-symbols-outlined text-[20px]">add_circle</span>
-            New Proposal
+            Manage Users
           </Link>
           <a
             className="flex items-center gap-3 rounded-lg px-4 py-2.5 text-white/50 transition-all duration-200 hover:bg-white/5 hover:text-white"
@@ -107,13 +116,14 @@ const PremiumDarkSidebar = () => {
             <span className="material-symbols-outlined text-lg">settings</span>
             <span className="text-sm font-medium">Settings</span>
           </a>
-          <Link
+          <button
             className="mt-2 flex items-center gap-3 rounded-lg px-4 py-2.5 text-white/50 transition-all duration-200 hover:bg-red-500/10 hover:text-red-400"
-            to="/"
+            onClick={handleLogout}
+            type="button"
           >
             <span className="material-symbols-outlined text-lg">logout</span>
             <span className="text-sm font-medium">Logout</span>
-          </Link>
+          </button>
         </div>
 
         <div className="px-4 pb-6">

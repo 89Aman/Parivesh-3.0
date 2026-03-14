@@ -8,12 +8,17 @@ client = TestClient(app)
 
 @pytest.mark.asyncio
 async def test_login_success():
+    import uuid
+    from datetime import datetime, timezone
+
     # Mocking user data
-    mock_role = Role(name=UserRoleEnum.PP)
+    mock_role = Role(id=1, name=UserRoleEnum.PP)
     mock_user = User(
-        id=1,
+        id=uuid.uuid4(),
         email="test@example.com",
         full_name="Test User",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
         roles=[mock_role]
     )
 

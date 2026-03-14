@@ -4,6 +4,11 @@ import { getDefaultRouteForUser } from '../services/authService';
 
 const EntryPortalRoleSelection = () => {
   const { isAuthenticated, user } = useAuth();
+  const userRoles = (user?.roles || []).map((r) => r.name);
+  const canSeePP = !isAuthenticated || userRoles.includes('PP') || userRoles.includes('RQP') || userRoles.includes('ADMIN');
+  const canSeeAdmin = !isAuthenticated || userRoles.includes('ADMIN');
+  const canSeeCommittee = !isAuthenticated || userRoles.includes('SCRUTINY') || userRoles.includes('MOM') || userRoles.includes('ADMIN');
+  const committeeRoute = userRoles.includes('MOM') ? '/committee/mom-editor' : '/committee/scrutiny';
 
   return (
     <>
@@ -57,7 +62,7 @@ const EntryPortalRoleSelection = () => {
               </p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-[1200px] w-full">
-              {(!isAuthenticated || (user && user.roles.some(r => r.name === 'PP' || r.name === 'RQP' || r.name === 'ADMIN'))) && (
+              {canSeePP && (
                 <div className="group relative flex flex-col bg-white dark:bg-slate-900 border border-primary/10 rounded-xl p-8 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300">
                   <div className="absolute top-0 right-0 p-4">
                     <span className="text-[10px] font-bold px-2 py-1 bg-accent-blue/10 text-accent-blue rounded-full uppercase tracking-tighter">Public</span>
@@ -81,7 +86,7 @@ const EntryPortalRoleSelection = () => {
                   </div>
                 </div>
               )}
-              {(!isAuthenticated || (user && user.roles.some(r => r.name === 'ADMIN'))) && (
+              {canSeeAdmin && (
                 <div className="group relative flex flex-col bg-white dark:bg-slate-900 border border-primary/10 rounded-xl p-8 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300">
                   <div className="absolute top-0 right-0 p-4">
                     <span className="text-[10px] font-bold px-2 py-1 bg-primary/10 text-primary rounded-full uppercase tracking-tighter">Internal</span>
@@ -105,7 +110,7 @@ const EntryPortalRoleSelection = () => {
                   </div>
                 </div>
               )}
-              {(!isAuthenticated || (user && user.roles.some(r => r.name === 'SCRUTINY' || r.name === 'MOM' || r.name === 'ADMIN'))) && (
+              {canSeeCommittee && (
                 <div className="group relative flex flex-col bg-white dark:bg-slate-900 border border-primary/10 rounded-xl p-8 hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-1 transition-all duration-300">
                   <div className="absolute top-0 right-0 p-4">
                     <span className="text-[10px] font-bold px-2 py-1 bg-accent-green/10 text-accent-green rounded-full uppercase tracking-tighter">Internal</span>
@@ -120,7 +125,7 @@ const EntryPortalRoleSelection = () => {
                   <div className="mt-auto">
                     <Link
                       to="/login"
-                      state={{ from: { pathname: '/committee/scrutiny' } }}
+                      state={{ from: { pathname: committeeRoute } }}
                       className="w-full py-3 bg-slate-900 dark:bg-primary text-white rounded-lg font-bold flex items-center justify-center gap-2 group-hover:bg-primary transition-colors"
                     >
                       Committee Access

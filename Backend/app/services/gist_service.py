@@ -3,17 +3,33 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload
 
 from app.models.application import Application, ApplicationStatus, ApplicationParameter
 from app.models.gist import GistTemplate
 from app.models.mom_model import Gist
 from app.models.audit import AuditLog
 from app.core.workflow import transition_status
-from app.core.exceptions import NotFoundException, BadRequestException
+from app.core.exceptions import NotFoundException
 
 
 class GistService:
+
+    @staticmethod
+    def _build_default_gist(placeholders: dict[str, str]) -> str:
+        return (
+            "PROJECT GIST\n"
+            f"Project Name: {placeholders.get('project_name', '')}\n"
+            f"Category: {placeholders.get('category', '')}\n"
+            f"Location: {placeholders.get('village', '')}, {placeholders.get('taluk', '')}, "
+            f"{placeholders.get('district', '')}, {placeholders.get('state', '')}\n"
+            f"Pincode: {placeholders.get('pincode', '')}\n"
+            f"Coordinates: {placeholders.get('latitude', '')}, {placeholders.get('longitude', '')}\n"
+            f"Project Area (ha): {placeholders.get('project_area_ha', '')}\n"
+            f"Capacity: {placeholders.get('capacity', '')}\n\n"
+            "Description:\n"
+            f"{placeholders.get('project_description', '')}\n"
+        )
 
     @staticmethod
     async def generate_gist(
@@ -25,29 +41,17 @@ class GistService:
         Auto-generate a Gist from the matching template + application data.
         FSM: REFERRED → MOM_GENERATED
         """
-        # Load application with parameters
+        # Load application with parameters AND their sector parameters
         result = await db.execute(
             select(Application)
-            .options(selectinload(Application.parameters))
+            .options(
+                selectinload(Application.parameters).joinedload(ApplicationParameter.sector_parameter)
+            )
             .filter(Application.id == app_id)
         )
         app = result.scalars().first()
         if not app:
             raise NotFoundException("Application")
-
-        # Find matching template
-        templ_result = await db.execute(
-            select(GistTemplate).filter(
-                GistTemplate.category == app.category,
-                GistTemplate.sector_id == app.sector_id,
-                GistTemplate.is_active == True,
-            ).order_by(GistTemplate.version.desc())
-        )
-        template = templ_result.scalars().first()
-        if not template:
-            raise BadRequestException(
-                f"No active gist template found for category={app.category}, sector_id={app.sector_id}"
-            )
 
         # Build placeholder map from application fields + parameters
         placeholders = {
@@ -76,13 +80,26 @@ class GistService:
                 elif ap.value_boolean is not None:
                     placeholders[key] = "Yes" if ap.value_boolean else "No"
 
-        # Replace {{placeholder}} in template
-        content = template.content
-        for key, value in placeholders.items():
-            content = content.replace(f"{{{{{key}}}}}", value)
+        # Find matching template
+        templ_result = await db.execute(
+            select(GistTemplate).filter(
+                GistTemplate.category == app.category,
+                GistTemplate.sector_id == app.sector_id,
+                GistTemplate.is_active == True,
+            ).order_by(GistTemplate.version.desc())
+        )
+        template = templ_result.scalars().first()
 
-        # Replace any remaining unreplaced placeholders with empty
-        content = re.sub(r"\{\{[^}]+\}\}", "", content)
+        if template:
+            # Replace {{placeholder}} in template
+            content = template.content
+            for key, value in placeholders.items():
+                content = content.replace(f"{{{{{key}}}}}", value)
+
+            # Replace any remaining unreplaced placeholders with empty
+            content = re.sub(r"\{\{[^}]+\}\}", "", content)
+        else:
+            content = GistService._build_default_gist(placeholders)
 
         # FSM: REFERRED → MOM_GENERATED
         await transition_status(db, app, ApplicationStatus.MOM_GENERATED, str(actor_id), "SCRUTINY", "Gist generated")
@@ -90,17 +107,18 @@ class GistService:
         # Create gist record
         gist = Gist(
             application_id=app_id,
-            template_id=template.id,
+            template_id=template.id if template else None,
             content=content,
             generated_by=actor_id,
         )
         db.add(gist)
 
+        template_label = template.name if template else "Default Fallback Template"
         audit = AuditLog(
             actor_id=actor_id,
             actor_role="SCRUTINY",
             action="GIST_GENERATED",
-            description=f"Gist generated from template '{template.name}' for application {app_id}",
+            description=f"Gist generated from template '{template_label}' for application {app_id}",
             entity_type="GIST",
             entity_id=str(app_id),
         )

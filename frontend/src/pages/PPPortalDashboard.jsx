@@ -102,9 +102,6 @@ const PPPortalDashboard = () => {
               <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/applications">
                 Applications
               </Link>
-              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/new-application">
-                New Application
-              </Link>
             </nav>
           </div>
 

@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,6 +18,7 @@ from app.services.application_service import ApplicationService
 from app.services.document_service import DocumentService
 from app.services.payment_service import PaymentService
 from app.services.eds_service import EDSService
+from app.services.naas_service import NaaSService
 
 router = APIRouter(prefix="/pp", tags=["PP / Project Proponent"])
 
@@ -80,6 +82,7 @@ async def create_application(
 ):
     app = await ApplicationService.create(db, data.model_dump(), current_user.id)
     await db.commit()
+    await db.refresh(app)
     return app
 
 
@@ -94,6 +97,7 @@ async def update_application(
         db, app_id, data.model_dump(exclude_unset=True), current_user.id
     )
     await db.commit()
+    await db.refresh(app)
     return app
 
 
@@ -111,6 +115,16 @@ async def submit_application(
     app = await ApplicationService.submit(db, app_id, current_user.id, role)
     await db.commit()
     await db.refresh(app)
+    await NaaSService.emit_event(
+        "APPLICATION_SUBMITTED",
+        {
+            "application_id": str(app.id),
+            "applicant_id": str(current_user.id),
+            "project_name": app.project_name,
+            "status": app.status,
+            "actor_role": role,
+        },
+    )
     return app
 
 
@@ -145,6 +159,7 @@ async def upload_document(
 ):
     doc = await DocumentService.upload(db, app_id, name, file_path, mime_type, current_user.id)
     await db.commit()
+    await db.refresh(doc)
     return doc
 
 
@@ -169,19 +184,17 @@ async def simulate_payment(
 ):
     payment = await PaymentService.simulate_payment(db, app_id, data.amount)
     await db.commit()
+    await db.refresh(payment)
     return payment
 
 
-@router.get("/applications/{app_id}/payment", response_model=PaymentOut)
+@router.get("/applications/{app_id}/payment", response_model=Optional[PaymentOut])
 async def get_payment(
     app_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("PP", "RQP")),
 ):
     payment = await PaymentService.get_for_application(db, app_id)
-    if not payment:
-        from app.core.exceptions import NotFoundException
-        raise NotFoundException("Payment")
     return payment
 
 
@@ -210,4 +223,5 @@ async def resolve_eds(
 ):
     eds = await EDSService.resolve_eds(db, app_id, current_user.id, data.resolution_text)
     await db.commit()
+    await db.refresh(eds)
     return eds

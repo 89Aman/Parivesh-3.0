@@ -1,31 +1,35 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
-import confetti from 'canvas-confetti';
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
 const ToastContext = createContext(null);
 
 export const useToast = () => useContext(ToastContext);
-
-// Green confetti burst for success actions
-export const fireSuccessConfetti = () => {
-  confetti({
-    particleCount: 80,
-    spread: 70,
-    origin: { y: 0.7 },
-    colors: ['#22c55e', '#4ade80', '#86efac', '#bbf7d0', '#16a34a'],
-    ticks: 60,
-    gravity: 1.2,
-    scalar: 0.9,
-  });
-};
 
 let toastIdCounter = 0;
 
 export const ToastProvider = ({ children }) => {
   const [toasts, setToasts] = useState([]);
 
+  const toDisplayText = useCallback((message) => {
+    if (typeof message === 'string') return message;
+    if (message == null) return '';
+    if (typeof message === 'number' || typeof message === 'boolean') return String(message);
+
+    if (Array.isArray(message)) {
+      return message
+        .map((entry) => (typeof entry === 'string' ? entry : JSON.stringify(entry)))
+        .join(' | ');
+    }
+
+    if (typeof message === 'object') {
+      return message.message || JSON.stringify(message);
+    }
+
+    return String(message);
+  }, []);
+
   const addToast = useCallback((message, type = 'info') => {
     const id = ++toastIdCounter;
-    setToasts(prev => [...prev, { id, message, type, dismissing: false }]);
+    setToasts(prev => [...prev, { id, message: toDisplayText(message), type, dismissing: false }]);
 
     // Auto dismiss after 4s
     setTimeout(() => {
@@ -37,13 +41,8 @@ export const ToastProvider = ({ children }) => {
       }, 300);
     }, 4000);
 
-    // Fire confetti on success toasts
-    if (type === 'success') {
-      fireSuccessConfetti();
-    }
-
     return id;
-  }, []);
+  }, [toDisplayText]);
 
   const removeToast = useCallback((id) => {
     setToasts(prev =>
@@ -64,8 +63,13 @@ export const ToastProvider = ({ children }) => {
     info: 'info',
   };
 
+  const contextValue = useMemo(
+    () => ({ addToast, removeToast, success, error, info }),
+    [addToast, removeToast, success, error, info]
+  );
+
   return (
-    <ToastContext.Provider value={{ addToast, removeToast, success, error, info }}>
+    <ToastContext.Provider value={contextValue}>
       {children}
       <div className="toast-container">
         {toasts.map(toast => (

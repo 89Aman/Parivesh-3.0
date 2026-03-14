@@ -1,0 +1,24 @@
+User-agent: *
+Disallow: /
+
+User-agent: Googlebot
+Disallow: /
+
+User-agent: Bingbot
+Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: YandexBot
+Disallow: /
+
+User-agent: slurp
+Disallow: /
+
+# Prevent indexing of all application directories, APIs, and portals
+Disallow: /pp/
+Disallow: /admin/
+Disallow: /scrutiny/
+Disallow: /mom/
+Disallow: /api/

@@ -113,9 +113,6 @@ const ApplicationDataTable = () => {
               <Link className="border-b-2 border-primary py-1 text-sm font-semibold text-primary" to="/pp/applications">
                 Applications
               </Link>
-              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/new-application">
-                New Application
-              </Link>
             </nav>
           </div>
 
@@ -140,8 +137,8 @@ const ApplicationDataTable = () => {
               {isAdmin ? 'Global Application Registry' : 'Application Registry'}
             </h1>
             <p className="text-base text-slate-500">
-              {isAdmin 
-                ? 'Viewing all system applications across all proponents.' 
+              {isAdmin
+                ? 'Viewing all system applications across all proponents.'
                 : 'Click any row to view details and manage your application.'}
             </p>
           </div>

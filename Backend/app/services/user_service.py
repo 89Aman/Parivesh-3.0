@@ -3,7 +3,8 @@ import secrets
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import String, cast
 
 from app.models.user import User, Role, UserRole, UserRoleEnum
 from app.models.audit import AuditLog
@@ -14,18 +15,31 @@ from app.core.exceptions import NotFoundException, BadRequestException
 class UserService:
 
     @staticmethod
-    async def get_by_email(db: AsyncSession, email: str) -> User | None:
+    async def _get_role_by_name(db: AsyncSession, role_name: str) -> Role | None:
+        normalized_role_name = (role_name or "").strip().upper()
+        if not normalized_role_name:
+            return None
         result = await db.execute(
-            select(User).options(selectinload(User.roles)).filter(User.email == email)
+            select(Role).filter(cast(Role.name, String) == normalized_role_name)
         )
         return result.scalars().first()
 
     @staticmethod
+    async def get_by_email(db: AsyncSession, email: str) -> User | None:
+        result = await db.execute(
+            select(User).options(joinedload(User.roles)).filter(User.email == email)
+        )
+        return result.unique().scalars().first()
+
+    @staticmethod
     async def get_by_id(db: AsyncSession, user_id) -> User | None:
         result = await db.execute(
-            select(User).options(selectinload(User.roles)).filter(User.id == user_id)
+            select(User)
+            .options(joinedload(User.roles))
+            .filter(User.id == user_id)
+            .execution_options(populate_existing=True)
         )
-        return result.scalars().first()
+        return result.unique().scalars().first()
 
     @staticmethod
     async def create_pp_user(db: AsyncSession, email: str, password: str, full_name: str,
@@ -45,8 +59,7 @@ class UserService:
         await db.flush()
 
         # Assign PP role
-        pp_role = await db.execute(select(Role).filter(Role.name == UserRoleEnum.PP))
-        pp_role = pp_role.scalars().first()
+        pp_role = await UserService._get_role_by_name(db, UserRoleEnum.PP.value)
         if pp_role:
             user_role = UserRole(user_id=user.id, role_id=pp_role.id)
             db.add(user_role)
@@ -79,8 +92,7 @@ class UserService:
             db.add(user)
             await db.flush()
 
-            role = await db.execute(select(Role).filter(Role.name == default_role))
-            role = role.scalars().first()
+            role = await UserService._get_role_by_name(db, default_role.value)
             if role:
                 db.add(UserRole(user_id=user.id, role_id=role.id))
                 await db.flush()
@@ -115,8 +127,7 @@ class UserService:
         except ValueError:
             raise BadRequestException(f"Invalid role: {role_name}")
 
-        role = await db.execute(select(Role).filter(Role.name == role_enum))
-        role = role.scalars().first()
+        role = await UserService._get_role_by_name(db, role_enum.value)
         if not role:
             raise NotFoundException("Role")
 
@@ -156,8 +167,7 @@ class UserService:
         except ValueError:
             raise BadRequestException(f"Invalid role: {role_name}")
 
-        role = await db.execute(select(Role).filter(Role.name == role_enum))
-        role = role.scalars().first()
+        role = await UserService._get_role_by_name(db, role_enum.value)
         if not role:
             raise NotFoundException("Role")
 
@@ -246,8 +256,7 @@ class UserService:
         except ValueError:
             raise BadRequestException(f"Invalid role: {role_name}")
 
-        role = await db.execute(select(Role).filter(Role.name == role_enum))
-        role = role.scalars().first()
+        role = await UserService._get_role_by_name(db, role_enum.value)
         if not role:
             raise NotFoundException("Role")
 

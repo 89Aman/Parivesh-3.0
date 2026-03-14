@@ -55,19 +55,33 @@ async def transition_status(
     Writes status history + audit log.
     """
     current = application.status
+    current_val = current.value if hasattr(current, "value") else current
+    target_val = target_status.value if hasattr(target_status, "value") else target_status
+
+    allowed_targets = TRANSITIONS.get(current, {})
+    # Also check by value if Enum lookup failed
+    if not allowed_targets and hasattr(current, "value"):
+         allowed_targets = TRANSITIONS.get(current, {}) # Should work
+    
+    # Simple lookup by value in TRANSITIONS if needed, but TRANSITIONS keys are ApplicationStatus
+    # Let's ensure current is converted to ApplicationStatus if it's a string
+    if isinstance(current, str):
+        current = ApplicationStatus(current)
+    
     allowed_targets = TRANSITIONS.get(current, {})
 
     if target_status not in allowed_targets:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Transition from {current.value} to {target_status.value} is not allowed.",
+            detail=f"Transition from {current_val} to {target_val} is not allowed.",
         )
+
 
     allowed_roles = allowed_targets[target_status]
     if actor_role not in allowed_roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Role '{actor_role}' cannot perform transition {current.value} → {target_status.value}.",
+            detail=f"Role '{actor_role}' cannot perform transition {current_val} → {target_val}.",
         )
 
     # Ensure IDs are proper UUID objects for UUID columns to avoid comparison errors in SQLite
@@ -85,8 +99,8 @@ async def transition_status(
     # Record history
     history = ApplicationStatusHistory(
         application_id=app_uuid,
-        from_status=current.value,
-        to_status=target_status.value,
+        from_status=current_val,
+        to_status=target_val,
         changed_by_user_id=actor_uuid,
         changed_by_role=actor_role,
         reason=reason,
@@ -98,7 +112,8 @@ async def transition_status(
         actor_id=actor_uuid,
         actor_role=actor_role,
         action="STATUS_CHANGE",
-        description=f"{current.value} -> {target_status.value}",
+        description=f"{current_val} -> {target_val}",
+
         entity_type="APPLICATION",
         entity_id=str(application.id),
     )

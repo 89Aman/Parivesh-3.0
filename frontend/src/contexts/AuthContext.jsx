@@ -1,26 +1,39 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import authService from '../services/authService';
-import { getAuthToken } from '../services/session';
+import { AUTH_UNAUTHORIZED_EVENT } from '../services/api';
 
 const AuthContext = createContext(null);
+
+const fallbackAuthContext = {
+  user: null,
+  isLoading: false,
+  isAuthenticated: false,
+  userRoles: [],
+  isAdmin: false,
+  hasRole: () => false,
+  login: authService.login,
+  logout: authService.logout,
+  refreshUser: authService.getCurrentUser,
+};
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    // Avoid blank-screen crashes during transient render/HMR edge-cases.
+    // AuthProvider should still wrap the app in normal execution.
+    return fallbackAuthContext;
   }
   return context;
 };
 
 export const AuthProvider = ({ children }) => {
-  // ── Instant startup: read cached user + token from localStorage ──
+  // Read cached user for UI continuity, but do not treat it as authenticated
+  // until restoreSession validates the token with the backend/supabase.
   const cachedUser = authService.getStoredUser();
-  const cachedToken = getAuthToken();
-  const hasCachedSession = Boolean(cachedUser && cachedToken);
 
   const [user, setUser] = useState(cachedUser);
-  const [isLoading, setIsLoading] = useState(!hasCachedSession); // only block if NO cache
-  const [isAuthenticated, setIsAuthenticated] = useState(hasCachedSession);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const didInitialize = useRef(false);
 
   // ── Background validation (does not block rendering) ──
@@ -71,6 +84,19 @@ export const AuthProvider = ({ children }) => {
     };
   }, [hydrateUser]);
 
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsLoading(false);
+    };
+
+    window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    return () => {
+      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+    };
+  }, []);
+
   const login = useCallback(async (email, password) => {
     const result = await authService.login(email, password);
     setUser(result.user);
@@ -81,9 +107,14 @@ export const AuthProvider = ({ children }) => {
 
 
   const logout = useCallback(async () => {
-    await authService.logout();
-    setUser(null);
-    setIsAuthenticated(false);
+    try {
+      await authService.logout();
+    } catch {
+      // Session is already cleared in authService finally block.
+    } finally {
+      setUser(null);
+      setIsAuthenticated(false);
+    }
   }, []);
 
   const refreshUser = useCallback(async () => {

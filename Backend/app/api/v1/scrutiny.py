@@ -8,7 +8,7 @@ from app.core.rbac import require_role
 from app.models.user import User
 from app.models.application import ApplicationStatus
 from app.schemas.application import ApplicationOut
-from app.schemas.payment import PaymentOut
+from app.schemas.payment import PaymentOut, PaymentSimulateRequest
 from app.schemas.eds import EDSRequestCreate, EDSRequestOut
 from app.schemas.meeting import MeetingCreate, MeetingOut, ReferralRequest, MeetingApplicationOut
 from app.schemas.gist import GistOut
@@ -19,6 +19,7 @@ from app.services.eds_service import EDSService
 from app.services.meeting_service import MeetingService
 from app.services.gist_service import GistService
 from app.services.document_service import DocumentService
+from app.services.naas_service import NaaSService
 
 router = APIRouter(prefix="/scrutiny", tags=["Scrutiny"])
 
@@ -62,16 +63,13 @@ async def list_application_documents(
     return await DocumentService.list_for_application(db, app_id)
 
 
-@router.get("/applications/{app_id}/payment", response_model=PaymentOut)
+@router.get("/applications/{app_id}/payment", response_model=Optional[PaymentOut])
 async def get_payment(
     app_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("SCRUTINY")),
 ):
     payment = await PaymentService.get_for_application(db, app_id)
-    if not payment:
-        from app.core.exceptions import NotFoundException
-        raise NotFoundException("Payment")
     return payment
 
 
@@ -90,7 +88,7 @@ async def accept_application(
         db, app, ApplicationStatus.UNDER_SCRUTINY, str(current_user.id), "SCRUTINY", "Accepted for scrutiny"
     )
     await db.commit()
-    return app
+    return await ApplicationService.get_by_id(db, app_id)
 
 
 # ──── Payment Verification ────
@@ -104,6 +102,35 @@ async def verify_payment(
 ):
     payment = await PaymentService.verify_payment(db, app_id, current_user.id)
     await db.commit()
+    await db.refresh(payment)
+    await NaaSService.emit_event(
+        "PAYMENT_VERIFIED",
+        {
+            "application_id": str(app_id),
+            "payment_id": payment.id,
+            "payment_status": payment.status,
+            "transaction_ref": payment.transaction_ref,
+            "actor_id": str(current_user.id),
+            "actor_role": "SCRUTINY",
+        },
+    )
+    return payment
+
+
+@router.post("/applications/{app_id}/payment/simulate", response_model=PaymentOut)
+async def simulate_payment(
+    app_id: UUID,
+    data: PaymentSimulateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("SCRUTINY")),
+):
+    existing = await PaymentService.get_for_application(db, app_id)
+    if existing:
+        return existing
+
+    payment = await PaymentService.simulate_payment(db, app_id, data.amount)
+    await db.commit()
+    await db.refresh(payment)
     return payment
 
 
@@ -123,6 +150,17 @@ async def raise_eds(
         issues=[issue.model_dump() for issue in data.issues],
     )
     await db.commit()
+    await NaaSService.emit_event(
+        "EDS_RAISED",
+        {
+            "application_id": str(app_id),
+            "eds_id": eds.id,
+            "general_comments": data.general_comments,
+            "issues_count": len(data.issues),
+            "actor_id": str(current_user.id),
+            "actor_role": "SCRUTINY",
+        },
+    )
     return eds
 
 
@@ -159,6 +197,16 @@ async def refer_application(
         db, app_id, data.meeting_id, current_user.id, data.referral_notes,
     )
     await db.commit()
+    await NaaSService.emit_event(
+        "APPLICATION_REFERRED_TO_MEETING",
+        {
+            "application_id": str(app_id),
+            "meeting_id": data.meeting_id,
+            "referral_notes": data.referral_notes,
+            "actor_id": str(current_user.id),
+            "actor_role": "SCRUTINY",
+        },
+    )
     return referral
 
 

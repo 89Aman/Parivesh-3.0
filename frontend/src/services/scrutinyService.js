@@ -31,6 +31,13 @@ const scrutinyService = {
     return response.data;
   },
 
+  simulatePayment: async (appId, amount) => {
+    const response = await api.post(`/scrutiny/applications/${appId}/payment/simulate`, {
+      amount,
+    });
+    return response.data;
+  },
+
   raiseEDS: async (appId, generalComments, issues = []) => {
     const payload = {
       general_comments: generalComments || null,

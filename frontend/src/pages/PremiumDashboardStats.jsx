@@ -19,7 +19,7 @@ const PremiumDashboardStats = () => {
 <Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to="/admin/dashboard">Overview</Link>
 <Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to="/pp/applications">Applications</Link>
 <Link className="text-primary text-sm font-semibold border-b-2 border-primary pb-1" to="/admin/stats">Reports</Link>
-<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to="/admin/sidebar">Settings</Link>
+<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to="/admin/dashboard">Users</Link>
 </nav>
 </div>
 <div className="flex items-center gap-4">

@@ -5,6 +5,7 @@ from sqlalchemy import (
     Integer, Numeric, Text
 )
 from sqlalchemy.orm import relationship
+
 from sqlalchemy import Uuid as UUID
 
 from app.core.db import Base
@@ -42,7 +43,11 @@ class Application(Base):
     capacity = Column(String, nullable=True)
 
     status = Column(
-        Enum(ApplicationStatus),
+        Enum(
+            ApplicationStatus,
+            name="application_status",
+            create_type=False,
+        ),
         nullable=False,
         default=ApplicationStatus.DRAFT,
     )

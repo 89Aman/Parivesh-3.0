@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
+import { Skeleton, SkeletonText } from '../components/Skeleton';
 import scrutinyService from '../services/scrutinyService';
 import { getApiErrorMessage } from '../services/api';
 
@@ -20,6 +22,16 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 
+const formatDateTime = (value) => {
+  if (!value) return '';
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+};
+
 const formatStatus = (status) => (status ? status.replaceAll('_', ' ') : 'N/A');
 
 const getQueueDays = (createdAt) => {
@@ -28,8 +40,15 @@ const getQueueDays = (createdAt) => {
   return Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
 };
 
+const buildDraftSnapshot = (draftRemarks, draftAttachment) => ({
+  remarks: draftRemarks || '',
+  attachedNoteName: draftAttachment || '',
+});
+
 const ScrutinyPortalApplicationReview = () => {
+  const navigate = useNavigate();
   const toast = useToast();
+  const { logout, hasRole } = useAuth();
   const fileInputRef = useRef(null);
 
   const [applications, setApplications] = useState([]);
@@ -41,8 +60,19 @@ const ScrutinyPortalApplicationReview = () => {
   const [remarks, setRemarks] = useState('');
   const [attachedNoteName, setAttachedNoteName] = useState('');
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const [queueError, setQueueError] = useState('');
   const [isDetailsLoading, setIsDetailsLoading] = useState(false);
   const [activeAction, setActiveAction] = useState('');
+  const [savedDraftMeta, setSavedDraftMeta] = useState(null);
+  const [lastDraftSnapshot, setLastDraftSnapshot] = useState(buildDraftSnapshot('', ''));
+
+  const hasUnsavedLocalDraft = useMemo(() => {
+    const currentSnapshot = buildDraftSnapshot(remarks, attachedNoteName);
+    return (
+      currentSnapshot.remarks !== lastDraftSnapshot.remarks ||
+      currentSnapshot.attachedNoteName !== lastDraftSnapshot.attachedNoteName
+    );
+  }, [attachedNoteName, lastDraftSnapshot, remarks]);
 
   const refreshQueue = async () => {
     const queue = await scrutinyService.getApplicationsForScrutiny();
@@ -60,6 +90,7 @@ const ScrutinyPortalApplicationReview = () => {
       setApplication(null);
       setDocuments([]);
       setPayment(null);
+      setSavedDraftMeta(null);
       return;
     }
 
@@ -85,23 +116,67 @@ const ScrutinyPortalApplicationReview = () => {
       if (savedDraft) {
         try {
           const parsed = JSON.parse(savedDraft);
-          setRemarks(parsed.remarks || '');
-          setAttachedNoteName(parsed.attachedNoteName || '');
+          const parsedRemarks = parsed.remarks || '';
+          const parsedAttachment = parsed.attachedNoteName || '';
+          setRemarks(parsedRemarks);
+          setAttachedNoteName(parsedAttachment);
+          setLastDraftSnapshot(buildDraftSnapshot(parsedRemarks, parsedAttachment));
+          setSavedDraftMeta(parsed.savedAt ? { savedAt: parsed.savedAt } : null);
         } catch {
           setRemarks('');
           setAttachedNoteName('');
+          setLastDraftSnapshot(buildDraftSnapshot('', ''));
+          setSavedDraftMeta(null);
         }
       } else {
         setRemarks('');
         setAttachedNoteName('');
+        setLastDraftSnapshot(buildDraftSnapshot('', ''));
+        setSavedDraftMeta(null);
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Unable to load application details.'));
       setApplication(null);
       setDocuments([]);
       setPayment(null);
+      setLastDraftSnapshot(buildDraftSnapshot('', ''));
+      setSavedDraftMeta(null);
     } finally {
       setIsDetailsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    if (!hasUnsavedLocalDraft) {
+      return undefined;
+    }
+
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedLocalDraft]);
+
+  const loadInitialData = useCallback(async () => {
+    setIsPageLoading(true);
+    setQueueError('');
+    try {
+      const [queue, meetingList] = await Promise.all([
+        scrutinyService.getApplicationsForScrutiny(),
+        scrutinyService.listMeetings(),
+      ]);
+      setApplications(queue);
+      setMeetings(meetingList);
+      setSelectedAppId(queue[0]?.id || null);
+    } catch (error) {
+      const message = getApiErrorMessage(error, 'Unable to load scrutiny queue.');
+      setQueueError(message);
+      toast.error(message);
+    } finally {
+      setIsPageLoading(false);
     }
   }, [toast]);
 
@@ -109,23 +184,16 @@ const ScrutinyPortalApplicationReview = () => {
     let isActive = true;
 
     const initialize = async () => {
-      try {
-        const [queue, meetingList] = await Promise.all([
-          scrutinyService.getApplicationsForScrutiny(),
-          scrutinyService.listMeetings(),
-        ]);
+      const stallTimer = setTimeout(() => {
         if (!isActive) return;
-        setApplications(queue);
-        setMeetings(meetingList);
-        setSelectedAppId(queue[0]?.id || null);
-      } catch (error) {
-        if (isActive) {
-          toast.error(getApiErrorMessage(error, 'Unable to load scrutiny queue.'));
-        }
+        setIsPageLoading(false);
+        setQueueError('Unable to load scrutiny queue. Please retry after backend is available.');
+      }, 12000);
+
+      try {
+        await loadInitialData();
       } finally {
-        if (isActive) {
-          setIsPageLoading(false);
-        }
+        clearTimeout(stallTimer);
       }
     };
 
@@ -134,7 +202,7 @@ const ScrutinyPortalApplicationReview = () => {
     return () => {
       isActive = false;
     };
-  }, [toast]);
+  }, [loadInitialData]);
 
   useEffect(() => {
     loadSelectedApplication(selectedAppId);
@@ -170,6 +238,48 @@ const ScrutinyPortalApplicationReview = () => {
 
   const handleHelp = () => {
     window.open('https://parivesh.nic.in/', '_blank', 'noopener,noreferrer');
+  };
+
+  const handleOpenMeetings = () => {
+    if (hasRole('MOM')) {
+      navigate('/committee/mom-editor');
+      return;
+    }
+    toast.info('MoM meeting workspace is available for MOM role.');
+  };
+
+  const handleLogout = async () => {
+    if (
+      hasUnsavedLocalDraft &&
+      !window.confirm('You have unsaved scrutiny remarks. Leave without saving this local draft?')
+    ) {
+      return;
+    }
+
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
+  const handleGuardedNavigation = (targetPath) => {
+    if (
+      hasUnsavedLocalDraft &&
+      !window.confirm('You have unsaved scrutiny remarks. Leave this page without saving the draft?')
+    ) {
+      return;
+    }
+
+    navigate(targetPath);
+  };
+
+  const handleSelectApplication = (nextAppId) => {
+    if (
+      hasUnsavedLocalDraft &&
+      !window.confirm('You have unsaved remarks for this file. Switch to another application anyway?')
+    ) {
+      return;
+    }
+
+    setSelectedAppId(nextAppId);
   };
 
   const handleDocumentAction = async (doc) => {
@@ -211,6 +321,10 @@ const ScrutinyPortalApplicationReview = () => {
 
   const handleVerifyPayment = async () => {
     if (!application) return;
+    if (!payment) {
+      toast.error('No payment found yet. Open QR and simulate payment first.');
+      return;
+    }
     if (payment?.status === 'VERIFIED') {
       toast.info('Payment is already verified.');
       return;
@@ -228,6 +342,29 @@ const ScrutinyPortalApplicationReview = () => {
     }
   };
 
+  const handleOpenQrAndSimulatePayment = async () => {
+    if (!application) return;
+
+    setActiveAction('simulate');
+    try {
+      const amount = Number(application?.project_area_ha || 0) > 0
+        ? Number((application.project_area_ha * 100).toFixed(2))
+        : 50000;
+
+      const upiPayload = `upi://pay?pa=parivesh.demo@upi&pn=PARIVESH%20DEMO&am=${amount}&cu=INR&tn=App-${application.id}`;
+      const qrUrl = `https://quickchart.io/qr?size=260&text=${encodeURIComponent(upiPayload)}`;
+      window.open(qrUrl, '_blank', 'noopener,noreferrer');
+
+      const simulated = await scrutinyService.simulatePayment(application.id, amount);
+      setPayment(simulated);
+      toast.success('QR opened and demo payment simulated. You can now verify payment.');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Unable to open QR/simulate payment.'));
+    } finally {
+      setActiveAction('');
+    }
+  };
+
   const handleReferToMeeting = async () => {
     if (!application) return;
     setActiveAction('refer');
@@ -235,7 +372,13 @@ const ScrutinyPortalApplicationReview = () => {
       await ensureUnderScrutiny();
 
       let paymentSnapshot = payment;
-      if (!paymentSnapshot || paymentSnapshot.status !== 'VERIFIED') {
+      if (!paymentSnapshot) {
+        throw new Error(
+          'Payment has not been simulated by the Project Proponent yet. Please ask PP to complete payment first.'
+        );
+      }
+
+      if (paymentSnapshot.status !== 'VERIFIED') {
         paymentSnapshot = await scrutinyService.verifyPayment(application.id);
         setPayment(paymentSnapshot);
       }
@@ -333,14 +476,17 @@ const ScrutinyPortalApplicationReview = () => {
       toast.error('No application selected.');
       return;
     }
+    const savedAt = new Date().toISOString();
     localStorage.setItem(
       `scrutiny_draft_${application.id}`,
       JSON.stringify({
         remarks,
         attachedNoteName,
-        savedAt: new Date().toISOString(),
+        savedAt,
       })
     );
+    setLastDraftSnapshot(buildDraftSnapshot(remarks, attachedNoteName));
+    setSavedDraftMeta({ savedAt });
     toast.success('Internal remarks draft saved.');
   };
 
@@ -349,33 +495,41 @@ const ScrutinyPortalApplicationReview = () => {
     ? `Proposal ID: ${application.id} | ${application.state || 'State pending'}`
     : 'Select an application from the scrutiny queue.';
   const queueDays = application ? getQueueDays(application.created_at) : 0;
+  const submittedCount = applications.filter((item) => item.status === 'SUBMITTED').length;
+  const underScrutinyCount = applications.filter((item) => item.status === 'UNDER_SCRUTINY').length;
+  const edsCount = applications.filter((item) => item.status === 'EDS').length;
+  const referredCount = applications.filter((item) => item.status === 'REFERRED').length;
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
       <header className="flex items-center justify-between border-b border-primary/10 bg-white px-8 py-3">
         <div className="flex items-center gap-8">
-          <Link className="flex items-center gap-4 text-primary" to="/">
+          <button className="flex items-center gap-4 text-primary" onClick={() => handleGuardedNavigation('/')} type="button">
             <div className="flex size-8 items-center justify-center rounded bg-primary/10">
               <span className="material-symbols-outlined text-primary">account_balance</span>
             </div>
             <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
-          </Link>
+          </button>
           <nav className="flex items-center gap-6">
-            <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/dashboard">
+            <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={() => handleGuardedNavigation('/pp/dashboard')} type="button">
               Dashboard
-            </Link>
-            <Link className="border-b-2 border-primary text-sm font-bold text-primary" to="/committee/scrutiny">
+            </button>
+            <button className="border-b-2 border-primary text-sm font-bold text-primary" onClick={() => handleGuardedNavigation('/committee/scrutiny')} type="button">
               Scrutiny Queue
-            </Link>
-            <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/committee/mom-editor">
+            </button>
+            <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={handleOpenMeetings} type="button">
               Meetings
-            </Link>
-            <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/admin/stats">
-              Reports
-            </Link>
+            </button>
           </nav>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            className="flex h-10 items-center justify-center rounded bg-red-50 px-3 text-red-600 hover:bg-red-100"
+            onClick={handleLogout}
+            type="button"
+          >
+            <span className="material-symbols-outlined">logout</span>
+          </button>
           <button
             className="flex h-10 items-center justify-center rounded bg-primary/10 px-3 text-primary"
             onClick={handleNotifications}
@@ -393,12 +547,53 @@ const ScrutinyPortalApplicationReview = () => {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-[1600px] grid-cols-12 gap-6 px-8 py-6">
+      <main className="mx-auto flex w-full max-w-[1600px] flex-1 flex-col gap-6 px-8 py-6">
+        <section className="rounded-3xl border border-primary/10 bg-gradient-to-r from-primary/[0.08] via-white to-sky-50 p-6 shadow-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">Scrutiny workspace</p>
+              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Move the next file decisively</h1>
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+                Keep the active case in focus, review the documents and payment in one pass, then choose the next action without losing your internal notes.
+              </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-4">
+              <SummaryStat label="In queue" value={applications.length} />
+              <SummaryStat label="Submitted" value={submittedCount} />
+              <SummaryStat label="Under scrutiny" value={underScrutinyCount} />
+              <SummaryStat label="EDS / referred" value={`${edsCount}/${referredCount}`} />
+            </div>
+          </div>
+        </section>
+
+        <div className="grid grid-cols-12 gap-6">
         <aside className="col-span-3 space-y-4">
           <section className="rounded-xl border border-primary/10 bg-white p-4">
-            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">Scrutiny Queue</h3>
+            <div className="mb-3 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500">Scrutiny Queue</h3>
+                <p className="mt-1 text-xs leading-5 text-slate-500">Pick a case, keep remarks attached to that application, and finish one decision path at a time.</p>
+              </div>
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">{applications.length}</span>
+            </div>
             {isPageLoading ? (
-              <p className="text-sm text-slate-500">Loading queue...</p>
+              <div className="space-y-2">
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-9 w-full" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            ) : queueError ? (
+              <div className="space-y-3">
+                <p className="text-sm text-red-600">{queueError}</p>
+                <button
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-white"
+                  onClick={loadInitialData}
+                  type="button"
+                >
+                  <span className="material-symbols-outlined text-sm">refresh</span>
+                  Retry
+                </button>
+              </div>
             ) : applications.length === 0 ? (
               <p className="text-sm text-slate-500">No applications currently in scrutiny queue.</p>
             ) : (
@@ -411,7 +606,7 @@ const ScrutinyPortalApplicationReview = () => {
                         : 'border-slate-200 bg-white hover:border-primary/50'
                     }`}
                     key={item.id}
-                    onClick={() => setSelectedAppId(item.id)}
+                    onClick={() => handleSelectApplication(item.id)}
                     type="button"
                   >
                     <p className="truncate text-sm font-semibold text-slate-900">{item.project_name}</p>
@@ -456,8 +651,17 @@ const ScrutinyPortalApplicationReview = () => {
           <div className="rounded-xl border border-primary/10 bg-white p-6">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-black text-slate-900">{appTitle}</h1>
-                <p className="mt-1 text-sm text-slate-500">{appSubtitle}</p>
+                {isDetailsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-8 w-72" />
+                    <Skeleton className="h-4 w-96" />
+                  </div>
+                ) : (
+                  <>
+                    <h1 className="text-2xl font-black text-slate-900">{appTitle}</h1>
+                    <p className="mt-1 text-sm text-slate-500">{appSubtitle}</p>
+                  </>
+                )}
               </div>
               <div className="rounded-lg bg-orange-100 px-3 py-2 text-sm font-bold text-orange-700">
                 {queueDays} Days in Queue
@@ -493,11 +697,7 @@ const ScrutinyPortalApplicationReview = () => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isDetailsLoading ? (
-                    <tr>
-                      <td className="px-5 py-4 text-sm text-slate-500" colSpan="3">
-                        Loading documents...
-                      </td>
-                    </tr>
+                    <tr><td colSpan="3" className="px-5 py-4"><SkeletonText lines={3} /></td></tr>
                   ) : documents.length === 0 ? (
                     <tr>
                       <td className="px-5 py-4 text-sm text-slate-500" colSpan="3">
@@ -536,21 +736,54 @@ const ScrutinyPortalApplicationReview = () => {
                     : 'Payment details unavailable for this application.'}
                 </p>
               </div>
-              <button
-                className="rounded border border-primary/20 bg-white px-3 py-1 text-[11px] font-bold text-primary disabled:opacity-60"
-                disabled={!application || activeAction === 'verify'}
-                onClick={handleVerifyPayment}
-                type="button"
-              >
-                {activeAction === 'verify' ? 'VERIFYING...' : 'RE-VERIFY'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700 disabled:opacity-60"
+                  disabled={!application || Boolean(activeAction) || payment?.status === 'VERIFIED'}
+                  onClick={handleOpenQrAndSimulatePayment}
+                  type="button"
+                >
+                  {activeAction === 'simulate' ? 'OPENING QR...' : 'Open QR + Simulate Paid'}
+                </button>
+                <button
+                  className="rounded border border-primary/20 bg-white px-3 py-1 text-[11px] font-bold text-primary disabled:opacity-60"
+                  disabled={!application || Boolean(activeAction)}
+                  onClick={handleVerifyPayment}
+                  type="button"
+                >
+                  {activeAction === 'verify' ? 'VERIFYING...' : 'Re-Verify'}
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
         <aside className="col-span-3 space-y-6">
           <div className="rounded-xl border-2 border-primary/10 bg-white p-6 shadow-sm">
-            <h3 className="mb-5 text-lg font-bold text-slate-900">Action Panel</h3>
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Action Panel</h3>
+                <p className="mt-1 text-sm text-slate-500">Keep remarks tight, save locally when needed, then send the file down a single review path.</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-3 py-2 text-right text-xs font-semibold text-slate-600">
+                <div>{documents.length} docs</div>
+                <div>{payment?.status || 'Payment pending'}</div>
+              </div>
+            </div>
+            <div className="mb-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              <div className="rounded-2xl bg-primary/[0.04] px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary">Current queue age</p>
+                <p className="mt-1 text-lg font-black text-slate-900">{queueDays} days</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Selected status</p>
+                <p className="mt-1 text-lg font-black text-slate-900">{formatStatus(application?.status)}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Last draft save</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{savedDraftMeta?.savedAt ? formatDateTime(savedDraftMeta.savedAt) : 'Not saved yet'}</p>
+              </div>
+            </div>
             <div className="space-y-3">
               <button
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60"
@@ -591,6 +824,11 @@ const ScrutinyPortalApplicationReview = () => {
                 placeholder="Type your observations here..."
                 value={remarks}
               />
+              {savedDraftMeta?.savedAt ? (
+                <p className="mt-2 text-[11px] text-slate-500">Local draft saved on {formatDateTime(savedDraftMeta.savedAt)}.</p>
+              ) : (
+                <p className="mt-2 text-[11px] text-slate-500">Save remarks locally if you need to leave this review and return later.</p>
+              )}
               <div className="mt-2 flex items-center justify-between gap-3">
                 <button
                   className="inline-flex items-center gap-1 text-xs font-bold text-primary"
@@ -639,6 +877,7 @@ const ScrutinyPortalApplicationReview = () => {
             </button>
           </div>
         </aside>
+        </div>
       </main>
 
       <footer className="mt-auto flex items-center justify-between border-t border-slate-200 bg-white px-8 py-5 text-xs text-slate-500">
@@ -658,5 +897,12 @@ const ScrutinyPortalApplicationReview = () => {
     </div>
   );
 };
+
+const SummaryStat = ({ label, value }) => (
+  <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">
+    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">{label}</p>
+    <p className="mt-2 text-2xl font-black text-slate-900">{value}</p>
+  </div>
+);
 
 export default ScrutinyPortalApplicationReview;

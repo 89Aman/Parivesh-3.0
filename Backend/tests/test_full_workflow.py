@@ -6,10 +6,12 @@ Also tests all Admin, PP, Scrutiny, and MoM routes.
 import httpx
 import asyncio
 import json
+import os
 import sys
 import traceback as tb
 
-BASE = "http://localhost:8001/api/v1"
+BASE = os.getenv("PARIVESH_API_BASE_URL", "http://localhost:8000/api/v1")
+ROOT_URL = BASE.removesuffix("/api/v1")
 RESULTS = {"passed": [], "failed": []}
 
 def log_pass(test_name, detail=""):
@@ -31,13 +33,13 @@ async def main():
         # 0. Health / Root
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         print("\n── 0. Health / Root ──")
-        r = await client.get("http://localhost:8001/")
+        r = await client.get(f"{ROOT_URL}/")
         if r.status_code == 200 and "Parivesh" in r.text:
             log_pass("GET /", f"({r.status_code})")
         else:
             log_fail("GET /", f"({r.status_code}) {r.text[:100]}")
 
-        r = await client.get("http://localhost:8001/health")
+        r = await client.get(f"{ROOT_URL}/health")
         if r.status_code == 200:
             log_pass("GET /health", f"({r.status_code})")
         else:
@@ -96,7 +98,7 @@ async def main():
         # 2. Login as ADMIN (need an admin user in DB)
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         print("\n── 2. Admin Login ──")
-        
+
         # Try common admin credentials
         admin_token = None
         for admin_email in ["admin@parivesh.com", "admin@admin.com", "admin@test.com"]:
@@ -105,7 +107,7 @@ async def main():
                 admin_token = r.json()["access_token"]
                 log_pass(f"POST /auth/login (ADMIN)", f"({r.status_code}) email={admin_email}")
                 break
-        
+
         if not admin_token:
             log_fail("ADMIN login", "No admin user found — will skip admin-only tests")
 
@@ -127,7 +129,7 @@ async def main():
         # 4. ADMIN ROUTES
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         print("\n── 4. Admin Routes ──")
-        
+
         sector_id = None
         if admin_headers:
             # List users
@@ -305,7 +307,7 @@ async def main():
         # 5. PP ROUTES
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         print("\n── 5. PP Routes ──")
-        
+
         # Profile
         r = await client.get(f"{BASE}/pp/profile", headers=pp_headers)
         if r.status_code == 200:
@@ -442,7 +444,7 @@ async def main():
         # 7. SCRUTINY ROUTES
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         print("\n── 7. Scrutiny Routes ──")
-        
+
         if not scrutiny_headers:
             log_fail("Scrutiny routes", "Skipped — no scrutiny token")
         else:
@@ -597,7 +599,7 @@ async def main():
         # 8. MOM ROUTES
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         print("\n── 8. MoM Routes ──")
-        
+
         if not mom_headers:
             log_fail("MoM routes", "Skipped — no MoM token")
         else:

@@ -9,6 +9,96 @@ import {
 } from './session';
 
 const getRoleNames = (user) => (user?.roles || []).map((role) => role.name);
+const RATE_LIMIT_ERROR_CODE = 'PARIVESH_AUTH_RATE_LIMITED';
+const DEFAULT_LOGIN_COOLDOWN_SECONDS = 60;
+
+let loginCooldownUntil = 0;
+
+const getErrorStatusCode = (error) => {
+  if (typeof error?.response?.status === 'number') return error.response.status;
+  if (typeof error?.status === 'number') return error.status;
+  return null;
+};
+
+const extractRetryAfterSeconds = (error) => {
+  const retryAfterHeader =
+    error?.response?.headers?.['retry-after'] ??
+    error?.response?.headers?.['Retry-After'];
+
+  const parsedHeader = Number.parseInt(retryAfterHeader, 10);
+  if (Number.isFinite(parsedHeader) && parsedHeader > 0) {
+    return parsedHeader;
+  }
+
+  const errorText = [
+    error?.response?.data?.detail,
+    error?.response?.data?.message,
+    error?.message,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value))
+    .join(' ')
+    .toLowerCase();
+
+  const minuteMatch = errorText.match(/(\d+)\s*(minute|min)/);
+  if (minuteMatch) {
+    return Number.parseInt(minuteMatch[1], 10) * 60;
+  }
+
+  const secondMatch = errorText.match(/(\d+)\s*(second|sec)/);
+  if (secondMatch) {
+    return Number.parseInt(secondMatch[1], 10);
+  }
+
+  return DEFAULT_LOGIN_COOLDOWN_SECONDS;
+};
+
+const createRateLimitError = (retryAfterSeconds) => {
+  const err = new Error(
+    `Too many login attempts. Try again in ${Math.max(1, retryAfterSeconds)} seconds.`
+  );
+  err.code = RATE_LIMIT_ERROR_CODE;
+  err.retryAfterSeconds = Math.max(1, retryAfterSeconds);
+  return err;
+};
+
+const enforceLocalCooldown = () => {
+  if (Date.now() < loginCooldownUntil) {
+    const remainingSeconds = Math.ceil((loginCooldownUntil - Date.now()) / 1000);
+    throw createRateLimitError(remainingSeconds);
+  }
+};
+
+const registerRateLimit = (error) => {
+  const retryAfterSeconds = extractRetryAfterSeconds(error);
+  loginCooldownUntil = Date.now() + retryAfterSeconds * 1000;
+  throw createRateLimitError(retryAfterSeconds);
+};
+
+export const isLoginRateLimitError = (error) => error?.code === RATE_LIMIT_ERROR_CODE;
+
+export const canAccessPathForUser = (user, path) => {
+  if (!path) return false;
+  const roles = getRoleNames(user);
+
+  if (path.startsWith('/admin')) {
+    return roles.includes('ADMIN');
+  }
+
+  if (path.startsWith('/pp')) {
+    return roles.includes('PP') || roles.includes('RQP');
+  }
+
+  if (path.startsWith('/committee/scrutiny')) {
+    return roles.includes('SCRUTINY');
+  }
+
+  if (path.startsWith('/committee/mom-editor')) {
+    return roles.includes('MOM');
+  }
+
+  return true;
+};
 
 export const getDefaultRouteForUser = (user) => {
   const roles = getRoleNames(user);
@@ -26,6 +116,13 @@ export const getDefaultRouteForUser = (user) => {
   }
 
   return '/pp/dashboard';
+};
+
+export const getSafeRouteForUser = (user, requestedPath) => {
+  if (requestedPath && canAccessPathForUser(user, requestedPath)) {
+    return requestedPath;
+  }
+  return getDefaultRouteForUser(user);
 };
 
 let hydrateUserPromise = null;
@@ -54,9 +151,14 @@ const hydrateCurrentUser = async () => {
 
 const authService = {
   login: async (email, password) => {
+    enforceLocalCooldown();
+
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
+        if (getErrorStatusCode(error) === 429) {
+          registerRateLimit(error);
+        }
         throw error;
       }
 
@@ -70,12 +172,30 @@ const authService = {
       return { token, user };
     }
 
-    const response = await api.post('/auth/login', { email, password });
+    let response;
+
+    try {
+      response = await api.post('/auth/login', { email, password });
+    } catch (error) {
+      if (getErrorStatusCode(error) === 429) {
+        registerRateLimit(error);
+      }
+      throw error;
+    }
+
+    loginCooldownUntil = 0;
+
     const token = response.data.access_token;
+    const user = response.data.user || null;
     setAuthToken(token);
 
-    const user = await hydrateCurrentUser();
-    return { token, user };
+    if (user) {
+      setStoredUser(user);
+      return { token, user };
+    }
+
+    const hydratedUser = await hydrateCurrentUser();
+    return { token, user: hydratedUser };
   },
 
 
@@ -119,10 +239,22 @@ const authService = {
   },
 
   logout: async () => {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
+    let signOutError = null;
+    try {
+      if (isSupabaseConfigured && supabase) {
+        await supabase.auth.signOut();
+      }
+    } catch (error) {
+      signOutError = error;
+    } finally {
+      clearSession();
     }
-    clearSession();
+
+    // Keep logout UX stable even when upstream sign-out fails.
+    if (signOutError) {
+      // eslint-disable-next-line no-console
+      console.warn('Sign-out completed locally but remote sign-out failed.', signOutError);
+    }
   },
 
   getCurrentUser: async () => {
