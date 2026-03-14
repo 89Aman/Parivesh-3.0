@@ -1,1 +1,26 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+.venv/
+env/
+venv/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+*.pyc
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log
+__pycache__/
+
 quality_scan

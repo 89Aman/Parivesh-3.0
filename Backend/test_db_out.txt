@@ -1,0 +1,8 @@
+admin@parivesh.demo: [Admin@123]
+admin@parivesh.gov.in: [Admin@123]
+mom@parivesh.demo: UNKNOWN
+mom@parivesh.gov.in: UNKNOWN
+pp@parivesh.demo: UNKNOWN
+pp@parivesh.gov.in: UNKNOWN
+scrutiny@parivesh.demo: UNKNOWN
+scrutiny@parivesh.gov.in: UNKNOWN

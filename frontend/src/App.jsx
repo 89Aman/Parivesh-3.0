@@ -11,7 +11,7 @@ import TopProgressBar from './components/TopProgressBar';
 import PageTransition from './components/PageTransition';
 import AppErrorBoundary from './components/AppErrorBoundary';
 import useGlobalEffects from './hooks/useGlobalEffects';
-import PlantLoader from './components/PlantLoader';
+import SimpleSpinner from './components/SimpleSpinner';
 import GlobalSearch from './components/GlobalSearch';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
@@ -33,12 +33,10 @@ const ComplianceMonitor = lazy(() => import('./pages/admin/ComplianceMonitor'));
 const ComplianceTracker = lazy(() => import('./pages/pp/ComplianceTracker'));
 
 const RouteLoader = () => (
-  <div className="flex h-screen w-full items-center justify-center bg-slate-50">
-    <div className="flex flex-col items-center gap-4">
-      <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      <p className="text-sm font-semibold text-slate-500">Loading your workspace...</p>
-    </div>
-  </div>
+  <SimpleSpinner
+    title="Loading page..."
+    subtitle="Please wait."
+  />
 );
 
 function AppContent() {
@@ -47,183 +45,119 @@ function AppContent() {
   const toast = useToast();
   const lastUnauthorizedToastAtRef = useRef(0);
   const [showHelp, setShowHelp] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   useKeyboardShortcuts({
-    onOpenHelp: () => setShowHelp((v) => !v),
-    onCloseAll: () => setShowHelp(false),
+    onSearch: () => setShowSearch(true),
+    onHelp: () => setShowHelp(true),
   });
 
   useEffect(() => {
     const handleUnauthorized = () => {
       const now = Date.now();
-      if (now - lastUnauthorizedToastAtRef.current < 2500) {
-        return;
-      }
-
-      lastUnauthorizedToastAtRef.current = now;
-      if (location.pathname !== ROUTES.LOGIN) {
-        toast.error('Session expired. Please login again.');
+      if (now - lastUnauthorizedToastAtRef.current > 5000) {
+        toast.error('Session expired. Please log in again.');
+        lastUnauthorizedToastAtRef.current = now;
       }
     };
 
     window.addEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
-    return () => {
-      window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
-    };
-  }, [location.pathname, toast]);
+    return () => window.removeEventListener(AUTH_UNAUTHORIZED_EVENT, handleUnauthorized);
+  }, [toast]);
 
   return (
-    <AppErrorBoundary>
-      <TopProgressBar />
-      <GlobalSearch />
-      {showHelp && <KeyboardShortcutsModal onClose={() => setShowHelp(false)} />}
-      <PageTransition key={location.pathname}>
-        <Suspense fallback={<RouteLoader />}>
-          <Routes location={location}>
-            {/* Public routes */}
-            <Route path={ROUTES.ROOT} element={<Navigate to={ROUTES.LOGIN} replace />} />
-            <Route path={ROUTES.LOGIN} element={<Parivesh3Login />} />
-            <Route path={ROUTES.REGISTER} element={<Parivesh3Register />} />
+    <ThemeProvider>
+      <AppErrorBoundary>
+        <div className="relative min-h-screen bg-slate-50 font-sans text-slate-900 antialiased selection:bg-primary/10 selection:text-primary">
+          <TopProgressBar />
+          <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
+          <KeyboardShortcutsModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
+          
+          <Suspense fallback={<RouteLoader />}>
+            <PageTransition location={location}>
+              <Routes>
+                {/* Public Routes */}
+                <Route path={ROUTES.LOGIN} element={<Parivesh3Login />} />
+                <Route path={ROUTES.REGISTER} element={<Parivesh3Register />} />
 
-            {/* Project Proponent Routes – require PP or RQP role */}
-            <Route
-              path={ROUTES.PP_DASHBOARD}
-              element={
-                <PPRoute>
-                  <PPPortalDashboard />
-                </PPRoute>
-              }
-            />
-            <Route
-              path={ROUTES.PP_NEW_APPLICATION}
-              element={
-                <PPRoute>
-                  <PPPortalNewApplicationForm />
-                </PPRoute>
-              }
-            />
-            <Route
-              path={ROUTES.PP_APPLICATIONS}
-              element={
-                <PPRoute>
-                  <ApplicationDataTable />
-                </PPRoute>
-              }
-            />
-            <Route
-              path={ROUTES.PP_WORKFLOW}
-              element={
-                <PPRoute>
-                  <ApplicationWorkflowTimeline />
-                </PPRoute>
-              }
-            />
-            <Route
-              path={ROUTES.PP_REVIEW}
-              element={
-                <PPRoute>
-                  <ReviewApplicationModal />
-                </PPRoute>
-              }
-            />
-            <Route
-              path={ROUTES.PP_APPLICATION_DETAIL}
-              element={
-                <PPRoute>
-                  <ApplicationDetailPage />
-                </PPRoute>
-              }
-            />
-            <Route
-              path={ROUTES.PP_COMPLIANCE}
-              element={
-                <PPRoute>
-                  <ComplianceTracker />
-                </PPRoute>
-              }
-            />
+                {/* Legacy Aliases */}
+                {Object.entries(LEGACY_ROUTE_ALIASES).map(([oldPath, newPath]) => (
+                  <Route key={oldPath} path={oldPath} element={<Navigate to={newPath} replace />} />
+                ))}
 
-            {/* Admin Routes – require ADMIN role */}
-            <Route
-              path={ROUTES.ADMIN_DASHBOARD}
-              element={
-                <AdminRoute>
-                  <AdminPortalDashboard />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path={ROUTES.ADMIN_ANALYTICS}
-              element={
-                <AdminRoute>
-                  <Analytics />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path={ROUTES.ADMIN_MAP}
-              element={
-                <AdminRoute>
-                  <MapView />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path={ROUTES.ADMIN_COMPLIANCE}
-              element={
-                <AdminRoute>
-                  <ComplianceMonitor />
-                </AdminRoute>
-              }
-            />
+                {/* Admin Routes */}
+                <Route
+                  path={`${ROUTES.ADMIN_PREFIX}/*`}
+                  element={
+                    <AdminRoute>
+                      <Routes>
+                        <Route path="dashboard" element={<AdminPortalDashboard />} />
+                        <Route path="analytics" element={<Analytics />} />
+                        <Route path="map" element={<MapView />} />
+                        <Route path="compliance" element={<ComplianceMonitor />} />
+                        <Route path="*" element={<Navigate to="dashboard" replace />} />
+                      </Routes>
+                    </AdminRoute>
+                  }
+                />
 
-            {/* Committee Routes – require SCRUTINY or MOM role */}
-            <Route
-              path={ROUTES.COMMITTEE_SCRUTINY}
-              element={
-                <ScrutinyRoute>
-                  <ScrutinyPortalApplicationReview />
-                </ScrutinyRoute>
-              }
-            />
-            <Route path="/scrutiny/dashboard" element={<Navigate to={ROUTES.COMMITTEE_SCRUTINY} replace />} />
-            <Route
-              path={ROUTES.COMMITTEE_MOM_EDITOR}
-              element={
-                <MoMRoute>
-                  <MoMPortalGistMinutesEditor />
-                </MoMRoute>
-              }
-            />
+                {/* PP Routes */}
+                <Route
+                  path={`${ROUTES.PP_PREFIX}/*`}
+                  element={
+                    <PPRoute>
+                      <Routes>
+                        <Route path="dashboard" element={<PPPortalDashboard />} />
+                        <Route path="apply" element={<PPPortalNewApplicationForm />} />
+                        <Route path="compliance" element={<ComplianceTracker />} />
+                        <Route path="applications/:id" element={<ApplicationDetailPage />} />
+                        <Route path="*" element={<Navigate to="dashboard" replace />} />
+                      </Routes>
+                    </PPRoute>
+                  }
+                />
 
-            {/* Legacy aliases kept for compatibility */}
-            {Object.entries(LEGACY_ROUTE_ALIASES).map(([from, to]) => (
-              <Route key={from} path={from} element={<Navigate to={to} replace />} />
-            ))}
+                {/* Committee Routes – require SCRUTINY or MOM role */}
+                <Route
+                  path={ROUTES.COMMITTEE_SCRUTINY}
+                  element={
+                    <ScrutinyRoute>
+                      <ScrutinyPortalApplicationReview />
+                    </ScrutinyRoute>
+                  }
+                />
+                <Route path="/scrutiny/dashboard" element={<Navigate to={ROUTES.COMMITTEE_SCRUTINY} replace />} />
+                <Route
+                  path={ROUTES.COMMITTEE_MOM_EDITOR}
+                  element={
+                    <MoMRoute>
+                      <MoMPortalGistMinutesEditor />
+                    </MoMRoute>
+                  }
+                />
 
-            {/* Catch-all – redirect to home */}
-            <Route path="*" element={<Navigate to={ROUTES.ROOT} replace />} />
-          </Routes>
-        </Suspense>
-      </PageTransition>
-    </AppErrorBoundary>
+                {/* Default Redirects */}
+                <Route path="/" element={<Navigate to={ROUTES.LOGIN} replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </PageTransition>
+          </Suspense>
+        </div>
+      </AppErrorBoundary>
+    </ThemeProvider>
   );
 }
 
-function App() {
+const App = () => {
   return (
-    <AppErrorBoundary>
-      <BrowserRouter>
-        <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <AppContent />
-            </ToastProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </BrowserRouter>
-    </AppErrorBoundary>
+    <BrowserRouter>
+      <ToastProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </ToastProvider>
+    </BrowserRouter>
   );
-}
+};
 
 export default App;
