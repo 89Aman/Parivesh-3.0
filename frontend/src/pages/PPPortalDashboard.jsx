@@ -140,6 +140,27 @@ const PPPortalDashboard = () => {
           </Link>
         </div>
 
+        <div className="mb-8 rounded-xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm">
+          <div className="flex items-start gap-4">
+            <span className="material-symbols-outlined mt-0.5 text-2xl text-indigo-600">info</span>
+            <div>
+              <h3 className="text-lg font-bold text-indigo-900">Mandatory: Submit Application Gist</h3>
+              <p className="mt-1 text-sm text-indigo-800">
+                You must submit the details of your project (Gist/brief summary) of the applied case for reference and discussion in the upcoming meeting.
+              </p>
+              <a
+                href="https://sites.google.com/view/ec-tor-form-submission/gist-submission-page"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-indigo-50"
+              >
+                Submit Gist Form
+                <span className="material-symbols-outlined text-sm">open_in_new</span>
+              </a>
+            </div>
+          </div>
+        </div>
+
         <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-4">
           <div className="rounded-xl border border-primary/5 bg-white p-5">
             <span className="material-symbols-outlined text-3xl text-primary">list_alt</span>
