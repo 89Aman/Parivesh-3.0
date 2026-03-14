@@ -7,10 +7,10 @@ const TopProgressBar = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Start progress
-    setVisible(true);
-    setProgress(30);
-
+    const timer0 = setTimeout(() => {
+      setVisible(true);
+      setProgress(30);
+    }, 0);
     const timer1 = setTimeout(() => setProgress(60), 50);
     const timer2 = setTimeout(() => setProgress(85), 120);
     const timer3 = setTimeout(() => setProgress(100), 200);
@@ -20,6 +20,7 @@ const TopProgressBar = () => {
     }, 400);
 
     return () => {
+      clearTimeout(timer0);
       clearTimeout(timer1);
       clearTimeout(timer2);
       clearTimeout(timer3);

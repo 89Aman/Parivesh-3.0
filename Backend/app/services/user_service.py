@@ -1,3 +1,5 @@
+import secrets
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -50,6 +52,37 @@ class UserService:
             await db.flush()
 
         # Reload with roles
+        return await UserService.get_by_id(db, user.id)
+
+    @staticmethod
+    async def create_external_user(
+        db: AsyncSession,
+        email: str,
+        full_name: str,
+        organization: str | None = None,
+        phone: str | None = None,
+        default_role: UserRoleEnum = UserRoleEnum.PP,
+    ) -> User:
+        existing = await UserService.get_by_email(db, email)
+        if existing:
+            return existing
+
+        user = User(
+            email=email,
+            password_hash=get_password_hash(secrets.token_urlsafe(32)),
+            full_name=full_name,
+            organization=organization,
+            phone=phone,
+        )
+        db.add(user)
+        await db.flush()
+
+        role = await db.execute(select(Role).filter(Role.name == default_role))
+        role = role.scalars().first()
+        if role:
+            db.add(UserRole(user_id=user.id, role_id=role.id))
+            await db.flush()
+
         return await UserService.get_by_id(db, user.id)
 
     @staticmethod

@@ -49,19 +49,12 @@ function AppContent() {
   );
 }
 
-import { GoogleOAuthProvider } from '@react-oauth/google';
-
 function App() {
-  // Replace with your actual Google Client ID
-  const GOOGLE_CLIENT_ID = "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com";
-
   return (
     <BrowserRouter>
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <ToastProvider>
-          <AppContent />
-        </ToastProvider>
-      </GoogleOAuthProvider>
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </BrowserRouter>
   );
 }

@@ -7,12 +7,19 @@ const PageTransition = ({ children }) => {
   const [animClass, setAnimClass] = useState('page-fade');
 
   useEffect(() => {
-    setAnimClass('');
+    const resetTimer = setTimeout(() => {
+      setAnimClass('');
+    }, 0);
+
     const timer = setTimeout(() => {
       setDisplayChildren(children);
       setAnimClass('page-fade');
     }, 10);
-    return () => clearTimeout(timer);
+
+    return () => {
+      clearTimeout(resetTimer);
+      clearTimeout(timer);
+    };
   }, [location.pathname, children]);
 
   return (

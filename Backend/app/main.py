@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.api.v1 import auth, admin, pp, scrutiny, mom
+from app.api.v1 import auth, admin, pp, scrutiny, mom, metadata
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -26,6 +26,7 @@ app.include_router(admin.router, prefix=settings.API_V1_STR)
 app.include_router(pp.router, prefix=settings.API_V1_STR)
 app.include_router(scrutiny.router, prefix=settings.API_V1_STR)
 app.include_router(mom.router, prefix=settings.API_V1_STR)
+app.include_router(metadata.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

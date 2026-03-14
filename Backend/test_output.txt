@@ -1,0 +1,112 @@
+
+======================================================================
+  PARIVESH BACKEND ΓÇö COMPREHENSIVE ROUTE TEST
+======================================================================
+
+ΓöÇΓöÇ 0. Health / Root ΓöÇΓöÇ
+  Γ£à PASS: GET / (200)
+  Γ£à PASS: GET /health (200)
+
+ΓöÇΓöÇ 1. Auth Routes ΓöÇΓöÇ
+  Γ£à PASS: POST /auth/register-pp (200) user_id=21401001-54ec-4be5-b297-481624a6b979
+  Γ£à PASS: POST /auth/login (PP) (200) token obtained
+  Γ£à PASS: POST /auth/login (wrong pwd) (400) correctly rejected
+  Γ£à PASS: POST /auth/register-pp (duplicate) (400) correctly rejected
+
+ΓöÇΓöÇ 2. Admin Login ΓöÇΓöÇ
+  Γ£à PASS: POST /auth/login (ADMIN) (200) email=admin@parivesh.com
+
+ΓöÇΓöÇ 3. Metadata Routes (Public) ΓöÇΓöÇ
+  Γ£à PASS: GET /metadata/sectors (200) count=12
+
+ΓöÇΓöÇ 4. Admin Routes ΓöÇΓöÇ
+  Γ£à PASS: GET /admin/users (200) count=39
+  Γ£à PASS: POST /admin/sectors (200) id=13
+  Γ£à PASS: GET /admin/sectors (200) count=13
+  Γ£à PASS: POST /admin/sectors/{id}/parameters (200) id=12
+  Γ£à PASS: GET /admin/sectors/{id}/parameters (200) count=1
+  Γ£à PASS: PUT /admin/sectors/{id}/parameters/{pid} (200)
+  Γ£à PASS: POST /admin/gist-templates (200) id=10
+  Γ£à PASS: GET /admin/gist-templates (200) count=10
+  Γ£à PASS: PUT /admin/gist-templates/{id} (200)
+  Γ£à PASS: POST /admin/users/{id}/roles (SCRUTINY) (200)
+  Γ£à PASS: POST /admin/users/{id}/roles (MOM) (200)
+  Γ£à PASS: DELETE /admin/users/{id}/roles/PP (200)
+  Γ£à PASS: DELETE /admin/users/{id}/roles/PP (MOM user) (200)
+  Γ£à PASS: RBAC: PP cannot access /admin/users (403) correctly forbidden
+  Γ£à PASS: POST /auth/login (SCRUTINY) (200)
+  Γ£à PASS: POST /auth/login (MOM) (200)
+
+ΓöÇΓöÇ 5. PP Routes ΓöÇΓöÇ
+  Γ£à PASS: GET /pp/profile (200) email=testpp_10428@test.com
+  Γ£à PASS: PUT /pp/profile (200)
+  Γ£à PASS: POST /pp/applications (create DRAFT) (200) id=382a14f5-5bf0-481b-b674-535d8ce3bd3a status=DRAFT
+  Γ£à PASS: GET /pp/applications (200) count=1
+  Γ£à PASS: GET /pp/applications/{id} (200)
+  Γ£à PASS: PUT /pp/applications/{id} (200)
+  Γ£à PASS: POST /pp/applications/{id}/parameters (200) count=1
+  Γ£à PASS: POST /pp/applications/{id}/documents (200)
+  Γ£à PASS: GET /pp/applications/{id}/documents (200) count=1
+  Γ£à PASS: POST /pp/applications/{id}/payment/simulate (200) txn=UPI-SIM-9263066ABE58 status=PENDING
+  Γ£à PASS: GET /pp/applications/{id}/payment (200)
+  Γ£à PASS: POST payment/simulate (duplicate) (400) correctly rejected
+
+ΓöÇΓöÇ 6. Workflow: DRAFT ΓåÆ SUBMITTED ΓöÇΓöÇ
+  Γ£à PASS: POST /pp/applications/{id}/submit (200) status=SUBMITTED
+  Γ£à PASS: PUT /pp/applications/{id} (after submit) (400) correctly rejected
+
+ΓöÇΓöÇ 7. Scrutiny Routes ΓöÇΓöÇ
+  Γ£à PASS: RBAC: MOM cannot access /scrutiny (403)
+  Γ£à PASS: GET /scrutiny/applications (200) count=7
+  Γ£à PASS: GET /scrutiny/applications?status=SUBMITTED (200) count=3
+  Γ£à PASS: GET /scrutiny/applications/{id} (200)
+
+ΓöÇΓöÇ 7a. Workflow: SUBMITTED ΓåÆ UNDER_SCRUTINY ΓöÇΓöÇ
+  Γ£à PASS: POST /scrutiny/applications/{id}/accept (200) status=UNDER_SCRUTINY
+
+ΓöÇΓöÇ 7b. Payment Verification ΓöÇΓöÇ
+  Γ£à PASS: POST /scrutiny/.../payment/verify (200) status=VERIFIED
+  Γ£à PASS: Payment verify (duplicate) (400) correctly rejected
+
+ΓöÇΓöÇ 7c. EDS Flow ΓöÇΓöÇ
+  Γ£à PASS: POST /scrutiny/applications/{id}/eds (raise EDS) (200) cycle=1 issues=2
+  Γ£à PASS: GET /pp/applications/{id}/eds (200) issues=2
+  Γ£à PASS: POST /pp/applications/{id}/eds/resolve (200) resolved_at=2026-03-13T20:27:54.392125Z
+  Γ£à PASS: Application back to UNDER_SCRUTINY status=UNDER_SCRUTINY eds_cycle=1
+
+ΓöÇΓöÇ 7d. Meeting & Referral ΓöÇΓöÇ
+  Γ£à PASS: POST /scrutiny/meetings (200) id=4
+  Γ£à PASS: GET /scrutiny/meetings (200) count=4
+  Γ£à PASS: POST /scrutiny/applications/{id}/refer (200)
+
+ΓöÇΓöÇ 7e. Auto-Gist Generation ΓöÇΓöÇ
+  Γ£à PASS: POST /scrutiny/.../gist/generate (200) id=3
+    ≡ƒô¥ Gist content preview: Project: Updated Mining Project
+Category: A
+State: Karnataka
+District: Bangalore
+Capacity: 5000 tons...
+  Γ£à PASS: GET /scrutiny/applications/{id}/gist (200)
+
+ΓöÇΓöÇ 8. MoM Routes ΓöÇΓöÇ
+  Γ£à PASS: RBAC: PP cannot access /mom (403)
+  Γ£à PASS: GET /mom/applications (200) count=4
+  Γ£à PASS: GET /mom/gists/{id} (200)
+  Γ£à PASS: PUT /mom/gists/{id} (200)
+  Γ£à PASS: RBAC: Scrutiny cannot edit /mom/gists (403)
+  Γ£à PASS: POST /mom/applications/{id}/mom (200) status=DRAFT
+  Γ£à PASS: GET /mom/applications/{id}/mom (200)
+
+ΓöÇΓöÇ 8a. Workflow: MOM_GENERATED ΓåÆ FINALIZED ΓöÇΓöÇ
+  Γ£à PASS: POST /mom/.../mom/finalize (200) status=FINALIZED pdf=/generated/mom_382a14f5-5bf0-481b-b674-535d8ce3bd3a.pdf
+  Γ£à PASS: MoM edit after finalize (400) correctly rejected
+  Γ£à PASS: MoM double finalize (400) correctly rejected
+
+ΓöÇΓöÇ 9. Final State Verification ΓöÇΓöÇ
+  Γ£à PASS: Final application status status=FINALIZED Γ£¿ FULL WORKFLOW COMPLETE!
+
+======================================================================
+  TEST SUMMARY
+======================================================================
+  Total: 65 | Γ£à Passed: 65 | Γ¥î Failed: 0
+======================================================================
