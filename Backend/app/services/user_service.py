@@ -147,8 +147,12 @@ class UserService:
         if not user:
             raise NotFoundException("User")
 
+        normalized_role_name = (role_name or "").strip().upper()
+        if not normalized_role_name:
+            raise BadRequestException("Role is required")
+
         try:
-            role_enum = UserRoleEnum(role_name)
+            role_enum = UserRoleEnum(normalized_role_name)
         except ValueError:
             raise BadRequestException(f"Invalid role: {role_name}")
 
@@ -157,18 +161,32 @@ class UserService:
         if not role:
             raise NotFoundException("Role")
 
-        # Remove all existing role mappings first to enforce one role per user.
+        current_role_names = {
+            (r.name.value if hasattr(r.name, "value") else str(r.name))
+            for r in (user.roles or [])
+        }
+
+        # No-op when user already has exactly one matching role.
+        if len(current_role_names) == 1 and normalized_role_name in current_role_names:
+            return user
+
+        # Remove all non-target role mappings to enforce one role per user.
+        has_target_role_mapping = False
         existing_user_roles = await db.execute(select(UserRole).filter(UserRole.user_id == user.id))
         for user_role in existing_user_roles.scalars().all():
+            if user_role.role_id == role.id:
+                has_target_role_mapping = True
+                continue
             await db.delete(user_role)
 
-        db.add(UserRole(user_id=user.id, role_id=role.id))
+        if not has_target_role_mapping:
+            db.add(UserRole(user_id=user.id, role_id=role.id))
 
         audit = AuditLog(
             actor_id=actor_id,
             actor_role="ADMIN",
             action="ROLE_SET_SINGLE",
-            description=f"Set role {role_name} for user {user.email}",
+            description=f"Set role {normalized_role_name} for user {user.email}",
             entity_type="USER",
             entity_id=str(user.id),
         )

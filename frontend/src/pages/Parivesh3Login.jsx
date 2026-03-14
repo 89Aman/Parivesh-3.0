@@ -5,14 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { getDefaultRouteForUser } from '../services/authService';
 import { getApiErrorMessage } from '../services/api';
 
-const getPortalPrefix = (path) => {
-  if (path?.startsWith('/admin')) return '/admin';
-  if (path?.startsWith('/pp')) return '/pp';
-  if (path?.startsWith('/committee/scrutiny')) return '/committee/scrutiny';
-  if (path?.startsWith('/committee/mom-editor')) return '/committee/mom-editor';
-  return '/';
-};
-
 const portalCards = [
   {
     title: 'Admin',
@@ -49,8 +41,7 @@ const Parivesh3Login = () => {
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
       const from = location.state?.from?.pathname;
-      const fallback = getDefaultRouteForUser(user);
-      const destination = getPortalPrefix(from) === getPortalPrefix(fallback) ? from : fallback;
+      const destination = from || getDefaultRouteForUser(user);
       navigate(destination, { replace: true });
     }
   }, [isLoading, isAuthenticated, user, navigate, location.state]);
@@ -66,9 +57,7 @@ const Parivesh3Login = () => {
       const { user: loggedInUser } = await login(email, password);
       toast.success('Signed in successfully.');
       const from = location.state?.from?.pathname;
-      const fallback = getDefaultRouteForUser(loggedInUser);
-      const destination = getPortalPrefix(from) === getPortalPrefix(fallback) ? from : fallback;
-      navigate(destination, { replace: true });
+      navigate(from || getDefaultRouteForUser(loggedInUser), { replace: true });
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Unable to sign in.'));
     } finally {

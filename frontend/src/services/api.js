@@ -53,6 +53,10 @@ api.interceptors.response.use(
 );
 
 export const getApiErrorMessage = (error, fallbackMessage = 'Something went wrong.') => {
+  if (error?.message === 'Network Error' || error?.code === 'ERR_NETWORK') {
+    return 'Cannot connect to backend server. Please ensure the API is running on http://localhost:8000.';
+  }
+
   return (
     error?.response?.data?.detail ||
     error?.response?.data?.message ||

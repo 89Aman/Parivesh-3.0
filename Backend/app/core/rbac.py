@@ -5,7 +5,10 @@ from app.models.user import User
 
 def require_role(*allowed_roles: str) -> Callable:
     async def role_checker(current_user: User = Depends(get_current_user)) -> User:
-        user_role_names = [role.name.value for role in current_user.roles]
+        user_role_names = [
+            (role.name.value if hasattr(role.name, "value") else str(role.name))
+            for role in (current_user.roles or [])
+        ]
         # Admins can do anything
         if "ADMIN" in user_role_names:
             return current_user

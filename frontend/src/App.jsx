@@ -19,7 +19,6 @@ import ApplicationDetailPage from './pages/ApplicationDetailPage';
 
 import TopProgressBar from './components/TopProgressBar';
 import PageTransition from './components/PageTransition';
-import EntryPortalRoleSelection from './pages/EntryPortalRoleSelection';
 import useGlobalEffects from './hooks/useGlobalEffects';
 
 function AppContent() {
@@ -32,7 +31,7 @@ function AppContent() {
       <PageTransition key={location.pathname}>
         <Routes location={location}>
           {/* Public routes */}
-          <Route path="/" element={<EntryPortalRoleSelection />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Parivesh3Login />} />
           <Route path="/register" element={<Parivesh3Register />} />
 

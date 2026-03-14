@@ -12,11 +12,13 @@ from app.schemas.payment import PaymentOut
 from app.schemas.eds import EDSRequestCreate, EDSRequestOut
 from app.schemas.meeting import MeetingCreate, MeetingOut, ReferralRequest, MeetingApplicationOut
 from app.schemas.gist import GistOut
+from app.schemas.document import DocumentOut
 from app.services.application_service import ApplicationService
 from app.services.payment_service import PaymentService
 from app.services.eds_service import EDSService
 from app.services.meeting_service import MeetingService
 from app.services.gist_service import GistService
+from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/scrutiny", tags=["Scrutiny"])
 
@@ -49,6 +51,28 @@ async def get_application(
     current_user: User = Depends(require_role("SCRUTINY")),
 ):
     return await ApplicationService.get_by_id(db, app_id)
+
+
+@router.get("/applications/{app_id}/documents", response_model=list[DocumentOut])
+async def list_application_documents(
+    app_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("SCRUTINY")),
+):
+    return await DocumentService.list_for_application(db, app_id)
+
+
+@router.get("/applications/{app_id}/payment", response_model=PaymentOut)
+async def get_payment(
+    app_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("SCRUTINY")),
+):
+    payment = await PaymentService.get_for_application(db, app_id)
+    if not payment:
+        from app.core.exceptions import NotFoundException
+        raise NotFoundException("Payment")
+    return payment
 
 
 # ──── Accept (SUBMITTED → UNDER_SCRUTINY) ────

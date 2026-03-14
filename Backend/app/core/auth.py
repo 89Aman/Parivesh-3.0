@@ -20,12 +20,11 @@ from app.services.user_service import UserService
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
 
-def _credentials_error() -> HTTPException:
+def _credentials_error(detail: str = "Could not validate credentials") -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail="Could not validate credentials",
+        detail=detail,
     )
-
 
 async def _get_user_by_id(db: AsyncSession, user_id: str) -> User | None:
     try:
@@ -131,7 +130,7 @@ async def get_current_user(
         user = await _get_user_by_supabase_token(db, token)
 
     if not user:
-        raise _credentials_error()
+        raise _credentials_error("Failed to validate local JWT or Supabase token. Please log in again.")
     if not user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return user

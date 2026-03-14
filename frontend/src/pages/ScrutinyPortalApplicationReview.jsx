@@ -1,326 +1,661 @@
-import React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useToast } from '../components/ToastProvider';
+import scrutinyService from '../services/scrutinyService';
+import { getApiErrorMessage } from '../services/api';
+
+const statusStyles = {
+  SUBMITTED: 'bg-blue-100 text-blue-700',
+  UNDER_SCRUTINY: 'bg-amber-100 text-amber-700',
+  EDS: 'bg-red-100 text-red-700',
+  REFERRED: 'bg-indigo-100 text-indigo-700',
+};
+
+const formatDate = (value) => {
+  if (!value) return 'N/A';
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(value));
+};
+
+const formatStatus = (status) => (status ? status.replaceAll('_', ' ') : 'N/A');
+
+const getQueueDays = (createdAt) => {
+  if (!createdAt) return 0;
+  const ms = Date.now() - new Date(createdAt).getTime();
+  return Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
+};
 
 const ScrutinyPortalApplicationReview = () => {
-  return (
-    <>
-      
-<div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
-<div className="layout-container flex h-full grow flex-col">
-<header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-primary/10 bg-white dark:bg-slate-900 px-10 py-3">
-<div className="flex items-center gap-8">
-<Link to="/" className="flex items-center gap-4 text-primary">
-<div className="size-8 flex items-center justify-center bg-primary/10 rounded">
-<span className="material-symbols-outlined text-primary">account_balance</span>
-</div>
-<h2 className="text-slate-900 dark:text-slate-100 text-lg font-bold leading-tight tracking-tight">PARIVESH 3.0</h2>
-</Link>
-<nav className="flex items-center gap-6">
-<Link className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" to="/pp/dashboard">Dashboard</Link>
-<Link className="text-primary text-sm font-bold border-b-2 border-primary leading-normal" to="/committee/scrutiny">Scrutiny Queue</Link>
-<Link className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" to="/committee/mom-editor">Meetings</Link>
-<Link className="text-slate-600 dark:text-slate-400 hover:text-primary text-sm font-medium transition-colors" to="/admin/stats">Reports</Link>
-</nav>
-</div>
-<div className="flex flex-1 justify-end gap-4">
-<div className="flex gap-2">
-<button className="flex items-center justify-center rounded h-10 bg-primary/10 text-primary px-3">
-<span className="material-symbols-outlined">notifications</span>
-</button>
-<button className="flex items-center justify-center rounded h-10 bg-primary/10 text-primary px-3">
-<span className="material-symbols-outlined">help</span>
-</button>
-</div>
-<div className="flex items-center gap-3 pl-4 border-l border-primary/10">
-<div className="text-right">
-<p className="text-xs font-bold">Dr. A. Sharma</p>
-<p className="text-[10px] text-slate-500">Member Secretary</p>
-</div>
-<div className="bg-primary/20 rounded-full size-10 flex items-center justify-center" data-alt="User profile placeholder">
-<span className="material-symbols-outlined text-primary">person</span>
-</div>
-</div>
-</div>
-</header>
-<main className="flex-1 px-10 py-6 max-w-[1600px] mx-auto w-full">
-<div className="mb-8 bg-white dark:bg-slate-900 p-6 rounded-xl shadow-sm border border-primary/5">
-<div className="flex items-center justify-between mb-6">
-<div>
-<h1 className="text-2xl font-black text-slate-900 dark:text-white">Expansion of Integrated Steel Plant (5.0 MTPA)</h1>
-<p className="text-slate-500 text-sm mt-1">Proposal ID: IA/JH/IND/42563/2023 | Jharkhand State Pollution Control Board</p>
-</div>
-<div className="flex items-center gap-2 px-4 py-2 bg-orange-100 text-orange-700 rounded-lg">
-<span className="material-symbols-outlined text-sm">timer</span>
-<span className="text-sm font-bold">12 Days Remaining</span>
-</div>
-</div>
-<div className="flex items-center w-full">
-<div className="flex flex-col items-center flex-1 relative">
-<div className="z-10 bg-green-500 text-white rounded-full p-1 flex items-center justify-center">
-<span className="material-symbols-outlined text-sm">check</span>
-</div>
-<p className="text-[11px] font-bold mt-2 uppercase tracking-wider text-green-600">Submission</p>
-<div className="absolute top-3 left-1/2 w-full h-[2px] bg-green-500"></div>
-</div>
-<div className="flex flex-col items-center flex-1 relative">
-<div className="z-10 bg-primary text-white rounded-full p-1 flex items-center justify-center ring-4 ring-primary/20">
-<span className="material-symbols-outlined text-sm">edit_note</span>
-</div>
-<p className="text-[11px] font-bold mt-2 uppercase tracking-wider text-primary">Scrutiny</p>
-<div className="absolute top-3 left-1/2 w-full h-[2px] bg-slate-200 dark:bg-slate-700"></div>
-</div>
-<div className="flex flex-col items-center flex-1 relative">
-<div className="z-10 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded-full p-1 flex items-center justify-center">
-<span className="material-symbols-outlined text-sm">engineering</span>
-</div>
-<p className="text-[11px] font-bold mt-2 uppercase tracking-wider text-slate-400">EAC/SEAC Review</p>
-<div className="absolute top-3 left-1/2 w-full h-[2px] bg-slate-200 dark:bg-slate-700"></div>
-</div>
-<div className="flex flex-col items-center flex-1 relative">
-<div className="z-10 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded-full p-1 flex items-center justify-center">
-<span className="material-symbols-outlined text-sm">history_edu</span>
-</div>
-<p className="text-[11px] font-bold mt-2 uppercase tracking-wider text-slate-400">Grant Recommendation</p>
-<div className="absolute top-3 left-1/2 w-full h-[2px] bg-slate-200 dark:bg-slate-700"></div>
-</div>
-<div className="flex flex-col items-center">
-<div className="z-10 bg-slate-200 dark:bg-slate-700 text-slate-400 rounded-full p-1 flex items-center justify-center">
-<span className="material-symbols-outlined text-sm">task_alt</span>
-</div>
-<p className="text-[11px] font-bold mt-2 uppercase tracking-wider text-slate-400">EC Issuance</p>
-</div>
-</div>
-</div>
-<div className="grid grid-cols-12 gap-6">
-<div className="col-span-3 space-y-6">
-<section className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-primary/5">
-<h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-<span className="material-symbols-outlined text-base">info</span>
-                                Project Details
-                            </h3>
-<div className="space-y-4">
-<div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-<p className="text-[11px] text-slate-500 uppercase">Project Category</p>
-<p className="text-sm font-semibold">Category A - Central Level</p>
-</div>
-<div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-<p className="text-[11px] text-slate-500 uppercase">Sector</p>
-<p className="text-sm font-semibold">Industrial Projects - I (Steel)</p>
-</div>
-<div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-<p className="text-[11px] text-slate-500 uppercase">Proposed Capacity</p>
-<p className="text-sm font-semibold">5.0 MTPA Finished Steel</p>
-</div>
-<div className="border-b border-slate-100 dark:border-slate-800 pb-3">
-<p className="text-[11px] text-slate-500 uppercase">Investment</p>
-<p className="text-sm font-semibold">₹4,250 Crores</p>
-</div>
-<div>
-<p className="text-[11px] text-slate-500 uppercase">Location</p>
-<p className="text-sm font-semibold">Jamshedpur, Jharkhand</p>
-<div className="mt-2 h-32 w-full bg-slate-200 rounded-lg overflow-hidden relative" data-location="Jamshedpur, India">
-<div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent"></div>
-<div className="absolute inset-0 flex items-center justify-center">
-<span className="material-symbols-outlined text-primary/30">map</span>
-</div>
-</div>
-</div>
-</div>
-</section>
-<section className="bg-white dark:bg-slate-900 rounded-xl p-5 shadow-sm border border-primary/5">
-<h3 className="text-sm font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-<span className="material-symbols-outlined text-base">person_search</span>
-                                User Information
-                            </h3>
-<div className="space-y-3">
-<div className="flex items-center gap-3">
-<div className="size-8 rounded-full bg-slate-100 flex items-center justify-center">
-<span className="material-symbols-outlined text-sm">business</span>
-</div>
-<div>
-<p className="text-xs font-bold">Tata Steel Limited</p>
-<p className="text-[10px] text-slate-500">Project Proponent</p>
-</div>
-</div>
-<div className="flex items-center gap-3">
-<div className="size-8 rounded-full bg-slate-100 flex items-center justify-center">
-<span className="material-symbols-outlined text-sm">person</span>
-</div>
-<div>
-<p className="text-xs font-bold">Mr. Rajesh Verma</p>
-<p className="text-[10px] text-slate-500">Environmental Consultant</p>
-</div>
-</div>
-</div>
-</section>
-</div>
-<div className="col-span-6">
-<div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-primary/5 overflow-hidden">
-<div className="p-5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-<h3 className="text-lg font-bold">Document Verification Checklist</h3>
-<div className="flex gap-2">
-<span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded">PAYMENT VERIFIED</span>
-</div>
-</div>
-<div className="p-0">
-<table className="w-full text-left border-collapse">
-<thead>
-<tr className="bg-slate-50 dark:bg-slate-800/50">
-<th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase">Document Name</th>
-<th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase">Status</th>
-<th className="px-5 py-3 text-[11px] font-bold text-slate-400 uppercase text-right">Action</th>
-</tr>
-</thead>
-<tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-<tr>
-<td className="px-5 py-4">
-<div className="flex items-center gap-3">
-<span className="material-symbols-outlined text-red-500">picture_as_pdf</span>
-<div>
-<p className="text-sm font-medium">Form 2 (Detailed Project Application)</p>
-<p className="text-[10px] text-slate-400">Uploaded on 12 Oct 2023</p>
-</div>
-</div>
-</td>
-<td className="px-5 py-4">
-<span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-1 rounded-full border border-blue-100">REVIEWED</span>
-</td>
-<td className="px-5 py-4 text-right">
-<button className="text-primary text-xs font-bold hover:underline flex items-center gap-1 ml-auto">
-<span className="material-symbols-outlined text-base">visibility</span> View
-                                                </button>
-</td>
-</tr>
-<tr>
-<td className="px-5 py-4">
-<div className="flex items-center gap-3">
-<span className="material-symbols-outlined text-red-500">picture_as_pdf</span>
-<div>
-<p className="text-sm font-medium">Pre-Feasibility Report (PFR)</p>
-<p className="text-[10px] text-slate-400">Uploaded on 12 Oct 2023</p>
-</div>
-</div>
-</td>
-<td className="px-5 py-4">
-<span className="bg-blue-50 text-blue-600 text-[10px] px-2 py-1 rounded-full border border-blue-100">REVIEWED</span>
-</td>
-<td className="px-5 py-4 text-right">
-<button className="text-primary text-xs font-bold hover:underline flex items-center gap-1 ml-auto">
-<span className="material-symbols-outlined text-base">visibility</span> View
-                                                </button>
-</td>
-</tr>
-<tr>
-<td className="px-5 py-4">
-<div className="flex items-center gap-3">
-<span className="material-symbols-outlined text-amber-500">folder_zip</span>
-<div>
-<p className="text-sm font-medium">Environment Management Plan (EMP)</p>
-<p className="text-[10px] text-slate-400">Uploaded on 14 Oct 2023</p>
-</div>
-</div>
-</td>
-<td className="px-5 py-4">
-<span className="bg-amber-50 text-amber-600 text-[10px] px-2 py-1 rounded-full border border-amber-100">PENDING</span>
-</td>
-<td className="px-5 py-4 text-right">
-<button className="text-primary text-xs font-bold hover:underline flex items-center gap-1 ml-auto">
-<span className="material-symbols-outlined text-base">visibility</span> View
-                                                </button>
-</td>
-</tr>
-<tr>
-<td className="px-5 py-4">
-<div className="flex items-center gap-3">
-<span className="material-symbols-outlined text-blue-500">image</span>
-<div>
-<p className="text-sm font-medium">KML/Topographic Map</p>
-<p className="text-[10px] text-slate-400">Uploaded on 12 Oct 2023</p>
-</div>
-</div>
-</td>
-<td className="px-5 py-4">
-<span className="bg-green-50 text-green-600 text-[10px] px-2 py-1 rounded-full border border-green-100">VERIFIED</span>
-</td>
-<td className="px-5 py-4 text-right">
-<button className="text-primary text-xs font-bold hover:underline flex items-center gap-1 ml-auto">
-<span className="material-symbols-outlined text-base">map</span> Open Map
-                                                </button>
-</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div className="p-5 bg-slate-50 dark:bg-slate-800/50 flex justify-between items-center">
-<div className="flex items-center gap-3">
-<div className="p-2 bg-green-500/10 text-green-600 rounded">
-<span className="material-symbols-outlined">payments</span>
-</div>
-<div>
-<p className="text-xs font-bold text-slate-700">Transaction ID: TXN98273412</p>
-<p className="text-[10px] text-slate-500">Amount: ₹10,00,000 | Status: Successful</p>
-</div>
-</div>
-<button className="text-[11px] font-bold text-primary border border-primary/20 px-3 py-1 rounded bg-white">RE-VERIFY</button>
-</div>
-</div>
-</div>
-<div className="col-span-3 space-y-6">
-<div className="bg-white dark:bg-slate-900 rounded-xl p-6 shadow-md border-2 border-primary/10">
-<h3 className="text-lg font-bold mb-6">Action Panel</h3>
-<div className="space-y-4">
-<button className="w-full bg-primary text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-primary/90 transition-all">
-<span className="material-symbols-outlined text-xl">send</span>
-                                    Refer to Meeting (EAC)
-                                </button>
-<button className="w-full bg-amber-500 text-white py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-amber-600 transition-all">
-<span className="material-symbols-outlined text-xl">help_center</span>
-                                    Raise EDS
-                                </button>
-<button className="w-full bg-red-50 text-red-600 py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-red-100 transition-all">
-<span className="material-symbols-outlined text-xl">cancel</span>
-                                    Reject Application
-                                </button>
-</div>
-<hr />
-<div>
-<label className="block text-xs font-bold text-slate-400 uppercase mb-2">Internal Remarks</label>
-<textarea className="w-full h-32 p-3 bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-1 focus:ring-primary placeholder:text-slate-400" placeholder="Type your observations here..."></textarea>
-<div className="mt-2 flex items-center justify-between">
-<button className="text-xs font-bold text-primary flex items-center gap-1">
-<span className="material-symbols-outlined text-sm">attach_file</span> Attach Note
-                                    </button>
-<button className="bg-slate-900 text-white text-xs px-4 py-2 rounded-lg font-bold">SAVE DRAFT</button>
-</div>
-</div>
-</div>
-<div className="bg-indigo-900 text-white rounded-xl p-5 shadow-sm relative overflow-hidden">
-<div className="absolute -right-4 -bottom-4 opacity-10">
-<span className="material-symbols-outlined text-9xl">gavel</span>
-</div>
-<h4 className="text-sm font-bold mb-2">Standard Operating Procedure</h4>
-<p className="text-xs text-indigo-200 leading-relaxed mb-4">Ensure all industrial projects above 1.0 MTPA are scrutinized for carbon emission compliance and groundwater recharge plans.</p>
-<a className="text-xs font-bold underline text-white flex items-center gap-1" href="#">
-                                View Compliance Guide <span className="material-symbols-outlined text-sm">open_in_new</span>
-</a>
-</div>
-</div>
-</div>
-</main>
-<footer className="mt-auto py-6 px-10 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center text-slate-500 text-xs">
-<div>
-                    © 2023 Ministry of Environment, Forest and Climate Change (MoEFCC). Government of India.
-                </div>
-<div className="flex gap-6">
-<a className="hover:text-primary" href="#">Security Policy</a>
-<a className="hover:text-primary" href="#">Audit Log</a>
-<a className="hover:text-primary" href="#">Accessibility Support</a>
-</div>
-</footer>
-</div>
-</div>
+  const toast = useToast();
+  const fileInputRef = useRef(null);
 
-    </>
+  const [applications, setApplications] = useState([]);
+  const [selectedAppId, setSelectedAppId] = useState(null);
+  const [application, setApplication] = useState(null);
+  const [documents, setDocuments] = useState([]);
+  const [payment, setPayment] = useState(null);
+  const [meetings, setMeetings] = useState([]);
+  const [remarks, setRemarks] = useState('');
+  const [attachedNoteName, setAttachedNoteName] = useState('');
+  const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isDetailsLoading, setIsDetailsLoading] = useState(false);
+  const [activeAction, setActiveAction] = useState('');
+
+  const refreshQueue = async () => {
+    const queue = await scrutinyService.getApplicationsForScrutiny();
+    setApplications(queue);
+    if (!selectedAppId && queue.length > 0) {
+      setSelectedAppId(queue[0].id);
+    } else if (selectedAppId && !queue.some((item) => item.id === selectedAppId)) {
+      setSelectedAppId(queue[0]?.id || null);
+    }
+    return queue;
+  };
+
+  const loadSelectedApplication = useCallback(async (appId) => {
+    if (!appId) {
+      setApplication(null);
+      setDocuments([]);
+      setPayment(null);
+      return;
+    }
+
+    setIsDetailsLoading(true);
+    try {
+      const [details, docs, paymentDetails] = await Promise.all([
+        scrutinyService.getApplicationDetails(appId),
+        scrutinyService.getApplicationDocuments(appId),
+        scrutinyService.getPaymentDetails(appId).catch((error) => {
+          const status = error?.response?.status;
+          if (status === 404) {
+            return null;
+          }
+          throw error;
+        }),
+      ]);
+
+      setApplication(details);
+      setDocuments(docs);
+      setPayment(paymentDetails);
+
+      const savedDraft = localStorage.getItem(`scrutiny_draft_${appId}`);
+      if (savedDraft) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          setRemarks(parsed.remarks || '');
+          setAttachedNoteName(parsed.attachedNoteName || '');
+        } catch {
+          setRemarks('');
+          setAttachedNoteName('');
+        }
+      } else {
+        setRemarks('');
+        setAttachedNoteName('');
+      }
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Unable to load application details.'));
+      setApplication(null);
+      setDocuments([]);
+      setPayment(null);
+    } finally {
+      setIsDetailsLoading(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const initialize = async () => {
+      try {
+        const [queue, meetingList] = await Promise.all([
+          scrutinyService.getApplicationsForScrutiny(),
+          scrutinyService.listMeetings(),
+        ]);
+        if (!isActive) return;
+        setApplications(queue);
+        setMeetings(meetingList);
+        setSelectedAppId(queue[0]?.id || null);
+      } catch (error) {
+        if (isActive) {
+          toast.error(getApiErrorMessage(error, 'Unable to load scrutiny queue.'));
+        }
+      } finally {
+        if (isActive) {
+          setIsPageLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    return () => {
+      isActive = false;
+    };
+  }, [toast]);
+
+  useEffect(() => {
+    loadSelectedApplication(selectedAppId);
+  }, [loadSelectedApplication, selectedAppId]);
+
+  const updateApplicationInQueue = (updatedApp) => {
+    setApplications((prev) =>
+      prev.map((item) => (item.id === updatedApp.id ? { ...item, ...updatedApp } : item))
+    );
+  };
+
+  const ensureUnderScrutiny = async () => {
+    if (!application) {
+      throw new Error('No application selected.');
+    }
+    if (application.status === 'SUBMITTED') {
+      const accepted = await scrutinyService.acceptApplication(application.id);
+      setApplication(accepted);
+      updateApplicationInQueue(accepted);
+      return accepted;
+    }
+    return application;
+  };
+
+  const handleNotifications = () => {
+    const underScrutiny = applications.filter((item) => item.status === 'UNDER_SCRUTINY').length;
+    const submitted = applications.filter((item) => item.status === 'SUBMITTED').length;
+    const eds = applications.filter((item) => item.status === 'EDS').length;
+    toast.info(
+      `Queue summary: ${submitted} submitted, ${underScrutiny} under scrutiny, ${eds} in EDS.`
+    );
+  };
+
+  const handleHelp = () => {
+    window.open('https://parivesh.nic.in/', '_blank', 'noopener,noreferrer');
+  };
+
+  const handleDocumentAction = async (doc) => {
+    if (!doc?.file_path) {
+      toast.error('Document path is missing.');
+      return;
+    }
+
+    if (doc.file_path.startsWith('http://') || doc.file_path.startsWith('https://')) {
+      window.open(doc.file_path, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(doc.file_path);
+      toast.info(`Document path copied: ${doc.file_path}`);
+    } catch {
+      toast.info(`Document path: ${doc.file_path}`);
+    }
+  };
+
+  const handleOpenMap = () => {
+    if (!application) return;
+    const locationQuery =
+      application.latitude && application.longitude
+        ? `${application.latitude},${application.longitude}`
+        : `${application.village || ''} ${application.district || ''} ${application.state || ''}`.trim();
+
+    if (!locationQuery) {
+      toast.error('Location details are not available.');
+      return;
+    }
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationQuery)}`,
+      '_blank',
+      'noopener,noreferrer'
+    );
+  };
+
+  const handleVerifyPayment = async () => {
+    if (!application) return;
+    if (payment?.status === 'VERIFIED') {
+      toast.info('Payment is already verified.');
+      return;
+    }
+
+    setActiveAction('verify');
+    try {
+      const verified = await scrutinyService.verifyPayment(application.id);
+      setPayment(verified);
+      toast.success('Payment verified successfully.');
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Unable to verify payment.'));
+    } finally {
+      setActiveAction('');
+    }
+  };
+
+  const handleReferToMeeting = async () => {
+    if (!application) return;
+    setActiveAction('refer');
+    try {
+      await ensureUnderScrutiny();
+
+      let paymentSnapshot = payment;
+      if (!paymentSnapshot || paymentSnapshot.status !== 'VERIFIED') {
+        paymentSnapshot = await scrutinyService.verifyPayment(application.id);
+        setPayment(paymentSnapshot);
+      }
+
+      let meetingId = meetings[0]?.id;
+      if (!meetingId) {
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const createdMeeting = await scrutinyService.createMeeting(
+          nextWeek.toISOString().slice(0, 10),
+          'EAC',
+          'EAC'
+        );
+        setMeetings((prev) => [createdMeeting, ...prev]);
+        meetingId = createdMeeting.id;
+      }
+
+      await scrutinyService.referApplication(application.id, meetingId, remarks.trim() || null);
+      toast.success('Application referred to meeting successfully.');
+      await refreshQueue();
+      await loadSelectedApplication(application.id);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Unable to refer application.'));
+    } finally {
+      setActiveAction('');
+    }
+  };
+
+  const handleRaiseEDS = async () => {
+    if (!application) return;
+    if (!remarks.trim()) {
+      toast.error('Enter internal remarks before raising EDS.');
+      return;
+    }
+
+    setActiveAction('eds');
+    try {
+      await ensureUnderScrutiny();
+      await scrutinyService.raiseEDS(application.id, remarks.trim(), [
+        {
+          standard_reason: 'Clarification required from scrutiny',
+          comments: remarks.trim(),
+          affected_field: attachedNoteName ? `Attachment: ${attachedNoteName}` : null,
+        },
+      ]);
+      toast.success('EDS raised successfully.');
+      await refreshQueue();
+      await loadSelectedApplication(application.id);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Unable to raise EDS.'));
+    } finally {
+      setActiveAction('');
+    }
+  };
+
+  const handleReject = async () => {
+    if (!application) return;
+    if (!remarks.trim()) {
+      toast.error('Add rejection remarks before proceeding.');
+      return;
+    }
+
+    setActiveAction('reject');
+    try {
+      await ensureUnderScrutiny();
+      await scrutinyService.raiseEDS(application.id, `Rejection note: ${remarks.trim()}`, [
+        {
+          standard_reason: 'Application rejected at scrutiny stage',
+          comments: remarks.trim(),
+        },
+      ]);
+      toast.success('Rejection note issued to proponent through EDS.');
+      await refreshQueue();
+      await loadSelectedApplication(application.id);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Unable to process rejection.'));
+    } finally {
+      setActiveAction('');
+    }
+  };
+
+  const handleAttachNote = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleNoteSelected = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setAttachedNoteName(file.name);
+    toast.info(`Attached note: ${file.name}`);
+  };
+
+  const handleSaveDraft = () => {
+    if (!application) {
+      toast.error('No application selected.');
+      return;
+    }
+    localStorage.setItem(
+      `scrutiny_draft_${application.id}`,
+      JSON.stringify({
+        remarks,
+        attachedNoteName,
+        savedAt: new Date().toISOString(),
+      })
+    );
+    toast.success('Internal remarks draft saved.');
+  };
+
+  const appTitle = application?.project_name || 'No Application Selected';
+  const appSubtitle = application
+    ? `Proposal ID: ${application.id} | ${application.state || 'State pending'}`
+    : 'Select an application from the scrutiny queue.';
+  const queueDays = application ? getQueueDays(application.created_at) : 0;
+
+  return (
+    <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
+      <header className="flex items-center justify-between border-b border-primary/10 bg-white px-8 py-3">
+        <div className="flex items-center gap-8">
+          <Link className="flex items-center gap-4 text-primary" to="/">
+            <div className="flex size-8 items-center justify-center rounded bg-primary/10">
+              <span className="material-symbols-outlined text-primary">account_balance</span>
+            </div>
+            <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
+          </Link>
+          <nav className="flex items-center gap-6">
+            <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/dashboard">
+              Dashboard
+            </Link>
+            <Link className="border-b-2 border-primary text-sm font-bold text-primary" to="/committee/scrutiny">
+              Scrutiny Queue
+            </Link>
+            <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/committee/mom-editor">
+              Meetings
+            </Link>
+            <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/admin/stats">
+              Reports
+            </Link>
+          </nav>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="flex h-10 items-center justify-center rounded bg-primary/10 px-3 text-primary"
+            onClick={handleNotifications}
+            type="button"
+          >
+            <span className="material-symbols-outlined">notifications</span>
+          </button>
+          <button
+            className="flex h-10 items-center justify-center rounded bg-primary/10 px-3 text-primary"
+            onClick={handleHelp}
+            type="button"
+          >
+            <span className="material-symbols-outlined">help</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="mx-auto grid w-full max-w-[1600px] grid-cols-12 gap-6 px-8 py-6">
+        <aside className="col-span-3 space-y-4">
+          <section className="rounded-xl border border-primary/10 bg-white p-4">
+            <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-slate-500">Scrutiny Queue</h3>
+            {isPageLoading ? (
+              <p className="text-sm text-slate-500">Loading queue...</p>
+            ) : applications.length === 0 ? (
+              <p className="text-sm text-slate-500">No applications currently in scrutiny queue.</p>
+            ) : (
+              <div className="space-y-2">
+                {applications.map((item) => (
+                  <button
+                    className={`w-full rounded-lg border px-3 py-2 text-left transition-all ${
+                      selectedAppId === item.id
+                        ? 'border-primary bg-primary/5'
+                        : 'border-slate-200 bg-white hover:border-primary/50'
+                    }`}
+                    key={item.id}
+                    onClick={() => setSelectedAppId(item.id)}
+                    type="button"
+                  >
+                    <p className="truncate text-sm font-semibold text-slate-900">{item.project_name}</p>
+                    <p className="mt-1 text-[11px] text-slate-500">{formatStatus(item.status)}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-primary/10 bg-white p-5">
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500">Project Details</h3>
+            <div className="space-y-3 text-sm">
+              <div>
+                <p className="text-[11px] uppercase text-slate-400">Category</p>
+                <p className="font-semibold text-slate-800">{application?.category || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase text-slate-400">Capacity</p>
+                <p className="font-semibold text-slate-800">{application?.capacity || 'N/A'}</p>
+              </div>
+              <div>
+                <p className="text-[11px] uppercase text-slate-400">Location</p>
+                <p className="font-semibold text-slate-800">
+                  {[application?.village, application?.district, application?.state].filter(Boolean).join(', ') ||
+                    'N/A'}
+                </p>
+                <button
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                  onClick={handleOpenMap}
+                  type="button"
+                >
+                  <span className="material-symbols-outlined text-sm">map</span>
+                  Open Map
+                </button>
+              </div>
+            </div>
+          </section>
+        </aside>
+
+        <section className="col-span-6 space-y-6">
+          <div className="rounded-xl border border-primary/10 bg-white p-6">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-black text-slate-900">{appTitle}</h1>
+                <p className="mt-1 text-sm text-slate-500">{appSubtitle}</p>
+              </div>
+              <div className="rounded-lg bg-orange-100 px-3 py-2 text-sm font-bold text-orange-700">
+                {queueDays} Days in Queue
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span
+                className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase ${
+                  statusStyles[application?.status] || 'bg-slate-100 text-slate-600'
+                }`}
+              >
+                {formatStatus(application?.status)}
+              </span>
+              <span className="text-xs text-slate-500">Created: {formatDate(application?.created_at)}</span>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-xl border border-primary/10 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+              <h3 className="text-lg font-bold text-slate-900">Document Verification Checklist</h3>
+              <span className="rounded bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
+                {documents.length} DOCUMENTS
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-left">
+                <thead>
+                  <tr className="bg-slate-50">
+                    <th className="px-5 py-3 text-[11px] font-bold uppercase text-slate-400">Document</th>
+                    <th className="px-5 py-3 text-[11px] font-bold uppercase text-slate-400">Uploaded</th>
+                    <th className="px-5 py-3 text-[11px] font-bold uppercase text-slate-400 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {isDetailsLoading ? (
+                    <tr>
+                      <td className="px-5 py-4 text-sm text-slate-500" colSpan="3">
+                        Loading documents...
+                      </td>
+                    </tr>
+                  ) : documents.length === 0 ? (
+                    <tr>
+                      <td className="px-5 py-4 text-sm text-slate-500" colSpan="3">
+                        No documents uploaded for this application.
+                      </td>
+                    </tr>
+                  ) : (
+                    documents.map((doc) => (
+                      <tr key={doc.id}>
+                        <td className="px-5 py-4 text-sm font-medium text-slate-800">{doc.name}</td>
+                        <td className="px-5 py-4 text-xs text-slate-500">{formatDate(doc.uploaded_at)}</td>
+                        <td className="px-5 py-4 text-right">
+                          <button
+                            className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                            onClick={() => handleDocumentAction(doc)}
+                            type="button"
+                          >
+                            <span className="material-symbols-outlined text-base">visibility</span>
+                            View
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50 px-5 py-4">
+              <div>
+                <p className="text-xs font-bold text-slate-700">
+                  Payment Status: {payment?.status || 'NOT AVAILABLE'}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {payment?.transaction_ref
+                    ? `Transaction ID: ${payment.transaction_ref} | Amount: INR ${payment.amount}`
+                    : 'Payment details unavailable for this application.'}
+                </p>
+              </div>
+              <button
+                className="rounded border border-primary/20 bg-white px-3 py-1 text-[11px] font-bold text-primary disabled:opacity-60"
+                disabled={!application || activeAction === 'verify'}
+                onClick={handleVerifyPayment}
+                type="button"
+              >
+                {activeAction === 'verify' ? 'VERIFYING...' : 'RE-VERIFY'}
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <aside className="col-span-3 space-y-6">
+          <div className="rounded-xl border-2 border-primary/10 bg-white p-6 shadow-sm">
+            <h3 className="mb-5 text-lg font-bold text-slate-900">Action Panel</h3>
+            <div className="space-y-3">
+              <button
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 font-bold text-white hover:bg-blue-700 disabled:opacity-60"
+                disabled={!application || Boolean(activeAction)}
+                onClick={handleReferToMeeting}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-xl">send</span>
+                {activeAction === 'refer' ? 'Referring...' : 'Refer to Meeting (EAC)'}
+              </button>
+              <button
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-3 font-bold text-white hover:bg-amber-600 disabled:opacity-60"
+                disabled={!application || Boolean(activeAction)}
+                onClick={handleRaiseEDS}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-xl">help_center</span>
+                {activeAction === 'eds' ? 'Raising EDS...' : 'Raise EDS'}
+              </button>
+              <button
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-red-50 px-4 py-3 font-bold text-red-600 hover:bg-red-100 disabled:opacity-60"
+                disabled={!application || Boolean(activeAction)}
+                onClick={handleReject}
+                type="button"
+              >
+                <span className="material-symbols-outlined text-xl">cancel</span>
+                {activeAction === 'reject' ? 'Processing...' : 'Reject Application'}
+              </button>
+            </div>
+
+            <hr className="my-5" />
+
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase text-slate-400">Internal Remarks</label>
+              <textarea
+                className="h-32 w-full rounded-lg border-none bg-slate-50 p-3 text-sm placeholder:text-slate-400 focus:ring-1 focus:ring-primary"
+                onChange={(event) => setRemarks(event.target.value)}
+                placeholder="Type your observations here..."
+                value={remarks}
+              />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <button
+                  className="inline-flex items-center gap-1 text-xs font-bold text-primary"
+                  onClick={handleAttachNote}
+                  type="button"
+                >
+                  <span className="material-symbols-outlined text-sm">attach_file</span>
+                  {attachedNoteName ? 'Change Note' : 'Attach Note'}
+                </button>
+                <button
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white"
+                  onClick={handleSaveDraft}
+                  type="button"
+                >
+                  SAVE DRAFT
+                </button>
+              </div>
+              {attachedNoteName ? (
+                <p className="mt-2 truncate text-[11px] text-slate-500">Attached: {attachedNoteName}</p>
+              ) : null}
+              <input
+                accept=".txt,.doc,.docx,.pdf"
+                className="hidden"
+                onChange={handleNoteSelected}
+                ref={fileInputRef}
+                type="file"
+              />
+            </div>
+          </div>
+
+          <div className="relative overflow-hidden rounded-xl bg-indigo-900 p-5 text-white shadow-sm">
+            <div className="absolute -bottom-4 -right-4 opacity-10">
+              <span className="material-symbols-outlined text-9xl">gavel</span>
+            </div>
+            <h4 className="mb-2 text-sm font-bold">Standard Operating Procedure</h4>
+            <p className="mb-4 text-xs leading-relaxed text-indigo-200">
+              Ensure industrial projects are scrutinized for emissions, water balance, and compliance notes.
+            </p>
+            <button
+              className="inline-flex items-center gap-1 text-xs font-bold underline"
+              onClick={handleHelp}
+              type="button"
+            >
+              View Compliance Guide
+              <span className="material-symbols-outlined text-sm">open_in_new</span>
+            </button>
+          </div>
+        </aside>
+      </main>
+
+      <footer className="mt-auto flex items-center justify-between border-t border-slate-200 bg-white px-8 py-5 text-xs text-slate-500">
+        <div>Copyright Ministry of Environment, Forest and Climate Change (MoEFCC), Government of India.</div>
+        <div className="flex gap-6">
+          <button className="hover:text-primary" onClick={handleHelp} type="button">
+            Security Policy
+          </button>
+          <button className="hover:text-primary" onClick={handleNotifications} type="button">
+            Audit Log
+          </button>
+          <button className="hover:text-primary" onClick={handleHelp} type="button">
+            Accessibility Support
+          </button>
+        </div>
+      </footer>
+    </div>
   );
 };
 
