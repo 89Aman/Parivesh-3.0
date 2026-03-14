@@ -1,0 +1,26 @@
+# Lightweight image for Cloud Run — no npm install stage.
+# The frontend is pre-built by the 'build-frontend' Cloud Build step
+# and the dist folder is copied directly into the image.
+
+FROM python:3.12-slim
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PORT=8080
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY Backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY Backend/app ./app
+
+# Copy the pre-built frontend (produced by the cloudbuild.yaml npm step).
+COPY frontend/dist ./frontend_dist
+
+EXPOSE 8080
+
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8080}"]

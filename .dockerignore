@@ -12,7 +12,8 @@ Backend/.venv/
 Backend/.env
 Backend/.env.*
 frontend/node_modules/
-frontend/dist/
+# frontend/dist is intentionally NOT ignored so Dockerfile.cloudrun can COPY it
+# after it has been pre-built by the cloudbuild.yaml npm step.
 frontend/.env
 frontend/.env.*
 frontend/.vite/
