@@ -2,7 +2,23 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 
 const ToastContext = createContext(null);
 
-export const useToast = () => useContext(ToastContext);
+const fallbackToast = {
+  addToast: () => null,
+  removeToast: () => {},
+  success: () => null,
+  error: () => null,
+  info: () => null,
+};
+
+const safeStringify = (value) => {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return '[Unserializable value]';
+  }
+};
+
+export const useToast = () => useContext(ToastContext) || fallbackToast;
 
 let toastIdCounter = 0;
 
@@ -16,12 +32,12 @@ export const ToastProvider = ({ children }) => {
 
     if (Array.isArray(message)) {
       return message
-        .map((entry) => (typeof entry === 'string' ? entry : JSON.stringify(entry)))
+        .map((entry) => (typeof entry === 'string' ? entry : safeStringify(entry)))
         .join(' | ');
     }
 
     if (typeof message === 'object') {
-      return message.message || JSON.stringify(message);
+      return message.message || safeStringify(message);
     }
 
     return String(message);

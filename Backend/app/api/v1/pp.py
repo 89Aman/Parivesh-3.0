@@ -19,6 +19,7 @@ from app.services.document_service import DocumentService
 from app.services.payment_service import PaymentService
 from app.services.eds_service import EDSService
 from app.services.naas_service import NaaSService
+from app.services.risk_scoring import calculate_risk_score
 
 router = APIRouter(prefix="/pp", tags=["PP / Project Proponent"])
 
@@ -113,6 +114,11 @@ async def submit_application(
             role = r.name.value
             break
     app = await ApplicationService.submit(db, app_id, current_user.id, role)
+    # Calculate and persist risk score on submission
+    risk_score, risk_level = calculate_risk_score(app)
+    app.risk_score = risk_score
+    app.risk_level = risk_level
+    db.add(app)
     await db.commit()
     await db.refresh(app)
     await NaaSService.emit_event(

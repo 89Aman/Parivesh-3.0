@@ -54,6 +54,8 @@ class ApplicationOut(BaseModel):
     capacity: Optional[str] = None
     status: str
     eds_cycle_count: int
+    risk_score: int = 0
+    risk_level: str = "LOW"
     created_at: datetime
     updated_at: datetime
 

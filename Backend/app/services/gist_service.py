@@ -36,6 +36,7 @@ class GistService:
         db: AsyncSession,
         app_id: UUID,
         actor_id: UUID,
+        actor_role: str = "SCRUTINY",
     ) -> Gist:
         """
         Auto-generate a Gist from the matching template + application data.
@@ -101,22 +102,40 @@ class GistService:
         else:
             content = GistService._build_default_gist(placeholders)
 
-        # FSM: REFERRED → MOM_GENERATED
-        await transition_status(db, app, ApplicationStatus.MOM_GENERATED, str(actor_id), "SCRUTINY", "Gist generated")
+        # FSM: REFERRED → MOM_GENERATED (skip transition if already generated/finalized)
+        if app.status == ApplicationStatus.REFERRED:
+            await transition_status(
+                db,
+                app,
+                ApplicationStatus.MOM_GENERATED,
+                str(actor_id),
+                actor_role,
+                "Gist generated",
+            )
 
-        # Create gist record
-        gist = Gist(
-            application_id=app_id,
-            template_id=template.id if template else None,
-            content=content,
-            generated_by=actor_id,
-        )
-        db.add(gist)
+        # Upsert gist so auto-generation can be retried safely.
+        existing_result = await db.execute(select(Gist).filter(Gist.application_id == app_id))
+        gist = existing_result.scalars().first()
+        if gist:
+            gist.template_id = template.id if template else None
+            gist.content = content
+            gist.last_modified_by = actor_id
+            from datetime import datetime, timezone
+            gist.last_modified_at = datetime.now(timezone.utc)
+            db.add(gist)
+        else:
+            gist = Gist(
+                application_id=app_id,
+                template_id=template.id if template else None,
+                content=content,
+                generated_by=actor_id,
+            )
+            db.add(gist)
 
         template_label = template.name if template else "Default Fallback Template"
         audit = AuditLog(
             actor_id=actor_id,
-            actor_role="SCRUTINY",
+            actor_role=actor_role,
             action="GIST_GENERATED",
             description=f"Gist generated from template '{template_label}' for application {app_id}",
             entity_type="GIST",

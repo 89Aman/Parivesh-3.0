@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 client = TestClient(app)
 
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 # Mock user
@@ -22,7 +22,7 @@ mock_user = User(
     full_name="PP User",
     roles=[mock_role],
     is_active=True,
-    created_at=datetime.utcnow()
+    created_at=datetime.now(timezone.utc)
 )
 
 async def override_get_current_user():

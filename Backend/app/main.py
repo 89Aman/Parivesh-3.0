@@ -13,6 +13,7 @@ from app.core.config import get_cors_origins, settings
 from app.core.db import engine
 from app.core.latency_metrics import EndpointLatencyMetrics
 from app.api.v1 import auth, admin, pp, scrutiny, mom, metadata
+from app.api.v1 import ai_assist, analytics, search, notifications, compliance
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -140,6 +141,11 @@ app.include_router(pp.router, prefix=settings.API_V1_STR)
 app.include_router(scrutiny.router, prefix=settings.API_V1_STR)
 app.include_router(mom.router, prefix=settings.API_V1_STR)
 app.include_router(metadata.router, prefix=settings.API_V1_STR)
+app.include_router(ai_assist.router, prefix=settings.API_V1_STR)
+app.include_router(analytics.router, prefix=settings.API_V1_STR)
+app.include_router(search.router, prefix=settings.API_V1_STR)
+app.include_router(notifications.router, prefix=settings.API_V1_STR)
+app.include_router(compliance.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

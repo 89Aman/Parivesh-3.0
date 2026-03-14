@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
+import PariveshBrand from '../components/PariveshBrand';
 import { useAuth } from '../contexts/AuthContext';
 import { getDefaultRouteForUser } from '../services/authService';
+import { ROUTES } from '../constants/routes';
 
 const EntryPortalRoleSelection = () => {
   const { isAuthenticated, user } = useAuth();
@@ -8,7 +10,7 @@ const EntryPortalRoleSelection = () => {
   const canSeePP = !isAuthenticated || userRoles.includes('PP') || userRoles.includes('RQP') || userRoles.includes('ADMIN');
   const canSeeAdmin = !isAuthenticated || userRoles.includes('ADMIN');
   const canSeeCommittee = !isAuthenticated || userRoles.includes('SCRUTINY') || userRoles.includes('MOM') || userRoles.includes('ADMIN');
-  const committeeRoute = userRoles.includes('MOM') ? '/committee/mom-editor' : '/committee/scrutiny';
+  const committeeRoute = userRoles.includes('MOM') ? ROUTES.COMMITTEE_MOM_EDITOR : ROUTES.COMMITTEE_SCRUTINY;
 
   return (
     <>
@@ -16,13 +18,7 @@ const EntryPortalRoleSelection = () => {
         <div className="layout-container flex h-full grow flex-col">
           <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-primary/10 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-6 md:px-20 py-4 sticky top-0 z-50">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center bg-primary text-white p-1.5 rounded-lg">
-                <span className="material-symbols-outlined text-2xl">eco</span>
-              </div>
-              <div className="flex flex-col">
-                <h2 className="text-primary text-xl font-black leading-none tracking-tight">PARIVESH 3.0</h2>
-                <span className="text-[10px] uppercase tracking-widest font-bold opacity-60">Govt of India</span>
-              </div>
+              <PariveshBrand subtitle="Govt of India" theme="primary" />
             </div>
             <div className="flex items-center gap-4">
               <button className="flex items-center justify-center rounded-full h-10 w-10 bg-primary/5 hover:bg-primary/10 text-slate-700 dark:text-slate-300 transition-colors">
@@ -42,7 +38,7 @@ const EntryPortalRoleSelection = () => {
                 </Link>
               ) : (
                 <Link
-                  to="/login"
+                  to={ROUTES.LOGIN}
                   className="flex items-center gap-2 px-4 h-10 bg-primary text-white rounded-lg font-bold text-sm hover:brightness-110 transition-all shadow-lg shadow-primary/20"
                 >
                   <span>Sign In</span>
@@ -76,8 +72,8 @@ const EntryPortalRoleSelection = () => {
                   </p>
                   <div className="mt-auto">
                     <Link
-                      to="/login"
-                      state={{ from: { pathname: '/pp/dashboard' } }}
+                      to={ROUTES.LOGIN}
+                      state={{ from: { pathname: ROUTES.PP_DASHBOARD } }}
                       className="w-full py-3 bg-slate-900 dark:bg-primary text-white rounded-lg font-bold flex items-center justify-center gap-2 group-hover:bg-primary transition-colors"
                     >
                       Access Portal
@@ -100,8 +96,8 @@ const EntryPortalRoleSelection = () => {
                   </p>
                   <div className="mt-auto">
                     <Link
-                      to="/login"
-                      state={{ from: { pathname: '/admin/dashboard' } }}
+                      to={ROUTES.LOGIN}
+                      state={{ from: { pathname: ROUTES.ADMIN_DASHBOARD } }}
                       className="w-full py-3 bg-slate-900 dark:bg-primary text-white rounded-lg font-bold flex items-center justify-center gap-2 group-hover:bg-primary transition-colors"
                     >
                       Admin Login
@@ -124,7 +120,7 @@ const EntryPortalRoleSelection = () => {
                   </p>
                   <div className="mt-auto">
                     <Link
-                      to="/login"
+                      to={ROUTES.LOGIN}
                       state={{ from: { pathname: committeeRoute } }}
                       className="w-full py-3 bg-slate-900 dark:bg-primary text-white rounded-lg font-bold flex items-center justify-center gap-2 group-hover:bg-primary transition-colors"
                     >

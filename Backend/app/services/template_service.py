@@ -1,12 +1,21 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from app.models.sector import Sector, SectorParameter
+from app.models.sector import Sector, SectorParameter, ParameterTypeEnum
 from app.models.gist import GistTemplate
-from app.core.exceptions import NotFoundException
+from app.core.exceptions import NotFoundException, BadRequestException
 
 
 class TemplateService:
+
+    @staticmethod
+    def _normalize_parameter_type(value: str | ParameterTypeEnum) -> ParameterTypeEnum:
+        if isinstance(value, ParameterTypeEnum):
+            return value
+        try:
+            return ParameterTypeEnum(str(value).strip().upper())
+        except ValueError as exc:
+            raise BadRequestException("Invalid parameter type. Use TEXT, NUMBER, or BOOLEAN") from exc
 
     # ---- Sectors ----
 
@@ -35,18 +44,21 @@ class TemplateService:
 
     @staticmethod
     async def add_parameter(db: AsyncSession, sector_id: int, data: dict) -> SectorParameter:
+        await TemplateService.get_sector(db, sector_id)
         param = SectorParameter(
             sector_id=sector_id,
             name=data["name"],
             key=data["key"],
-            type=data["type"],
+            type=TemplateService._normalize_parameter_type(data["type"]),
             is_required=data.get("is_required", False),
             display_order=data.get("display_order", 0),
         )
         db.add(param)
         await db.flush()
-        await db.refresh(param)
-        return param
+        result = await db.execute(
+            select(SectorParameter).filter(SectorParameter.id == param.id)
+        )
+        return result.scalars().first()
 
     @staticmethod
     async def list_parameters(db: AsyncSession, sector_id: int) -> list[SectorParameter]:
@@ -67,11 +79,15 @@ class TemplateService:
             raise NotFoundException("Sector Parameter")
         for key, value in data.items():
             if value is not None and hasattr(param, key):
+                if key == "type":
+                    value = TemplateService._normalize_parameter_type(value)
                 setattr(param, key, value)
         db.add(param)
         await db.flush()
-        await db.refresh(param)
-        return param
+        result = await db.execute(
+            select(SectorParameter).filter(SectorParameter.id == param.id)
+        )
+        return result.scalars().first()
 
     # ---- Gist Templates ----
 

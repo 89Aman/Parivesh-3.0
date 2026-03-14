@@ -55,12 +55,10 @@ const normalizeLocalApiBaseUrl = (baseUrl) => {
   }
 
   try {
-    const parsed = new URL(baseUrl);
-    const isLocalHost = parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
-    if (isLocalHost && parsed.port === '8001') {
-      parsed.port = '8000';
-      return parsed.toString().replace(/\/$/, '');
-    }
+    // Keep the user-configured local host/port intact.
+    // Silent port rewriting can route requests to a stale backend process.
+    // We only validate URL shape here.
+    new URL(baseUrl);
   } catch {
     return getDefaultApiBaseUrl();
   }
@@ -70,7 +68,53 @@ const normalizeLocalApiBaseUrl = (baseUrl) => {
 
 const API_BASE_URL = normalizeLocalApiBaseUrl(import.meta.env.VITE_API_BASE_URL || getDefaultApiBaseUrl());
 
-const LOCAL_FALLBACK_PORTS = ['8000'];
+const LOCAL_FALLBACK_PORTS = ['8000', '8001'];
+
+const getErrorDetailText = (error) => {
+  const detail = error?.response?.data?.detail;
+  if (typeof detail === 'string') return detail.toLowerCase();
+  if (Array.isArray(detail)) {
+    return detail
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object') {
+          return item.msg || JSON.stringify(item);
+        }
+        return '';
+      })
+      .join(' ')
+      .toLowerCase();
+  }
+  return '';
+};
+
+const shouldTriggerGlobalUnauthorized = (error) => {
+  if (error?.response?.status !== 401) return false;
+
+  const config = error?.config || {};
+  if (config.__skipGlobalUnauthorized) return false;
+
+  const requestUrl = `${config.baseURL || ''}${config.url || ''}`.toLowerCase();
+
+  // Wrong credentials and similar auth form flows should not nuke session globally.
+  if (requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register')) {
+    return false;
+  }
+
+  // /auth/me is our canonical session validity check.
+  if (requestUrl.includes('/auth/me')) {
+    return true;
+  }
+
+  const detailText = getErrorDetailText(error);
+  return (
+    detailText.includes('not authenticated') ||
+    detailText.includes('could not validate credentials') ||
+    detailText.includes('invalid token') ||
+    detailText.includes('token has expired') ||
+    detailText.includes('signature')
+  );
+};
 
 const isConnectivityError = (error) => {
   const code = error?.code;
@@ -185,7 +229,7 @@ api.interceptors.response.use(
       }
     }
 
-    if (error.response && error.response.status === 401) {
+    if (shouldTriggerGlobalUnauthorized(error)) {
       clearSession();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent(AUTH_UNAUTHORIZED_EVENT));

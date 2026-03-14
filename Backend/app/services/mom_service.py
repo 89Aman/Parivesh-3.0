@@ -11,6 +11,7 @@ from app.models.application import Application, ApplicationStatus
 from app.models.audit import AuditLog
 from app.core.workflow import transition_status
 from app.core.exceptions import NotFoundException, BadRequestException
+from app.services.gist_service import GistService
 
 
 class MoMService:
@@ -26,7 +27,7 @@ class MoMService:
         gist_result = await db.execute(select(Gist).filter(Gist.application_id == app_id))
         gist = gist_result.scalars().first()
         if not gist:
-            raise BadRequestException("Gist must be generated before creating a MoM")
+            gist = await GistService.generate_gist(db, app_id, actor_id, actor_role="MOM")
 
         # Check if MoM exists
         mom_result = await db.execute(select(MoM).filter(MoM.application_id == app_id))
@@ -71,6 +72,10 @@ class MoMService:
         app_result = await db.execute(select(Application).filter(Application.id == app_id))
         app = app_result.scalars().first()
         await transition_status(db, app, ApplicationStatus.FINALIZED, str(actor_id), "MOM", "MoM finalized")
+
+        # Create compliance tasks
+        from app.services.compliance import ComplianceService
+        await ComplianceService.generate_tasks(db, app.id)
 
         mom.status = "FINALIZED"
         mom.finalized_by = actor_id

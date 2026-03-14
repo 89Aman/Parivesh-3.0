@@ -2,6 +2,8 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 
+from app.models.sector import ParameterTypeEnum
+
 
 class SectorCreate(BaseModel):
     name: str
@@ -21,7 +23,7 @@ class SectorOut(BaseModel):
 class SectorParameterCreate(BaseModel):
     name: str
     key: str
-    type: str  # TEXT, NUMBER, BOOLEAN
+    type: ParameterTypeEnum
     is_required: bool = False
     display_order: int = 0
 
@@ -29,7 +31,7 @@ class SectorParameterCreate(BaseModel):
 class SectorParameterUpdate(BaseModel):
     name: Optional[str] = None
     key: Optional[str] = None
-    type: Optional[str] = None
+    type: Optional[ParameterTypeEnum] = None
     is_required: Optional[bool] = None
     display_order: Optional[int] = None
 
@@ -39,7 +41,7 @@ class SectorParameterOut(BaseModel):
     sector_id: int
     name: str
     key: str
-    type: str
+    type: ParameterTypeEnum
     is_required: bool
     display_order: int
 

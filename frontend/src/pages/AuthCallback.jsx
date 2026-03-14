@@ -4,6 +4,7 @@ import { useToast } from '../components/ToastProvider';
 import { supabase } from '../supabase';
 import authService, { getDefaultRouteForUser } from '../services/authService';
 import { getApiErrorMessage } from '../services/api';
+import { ROUTES } from '../constants/routes';
 
 const AuthCallback = () => {
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ const AuthCallback = () => {
 
       if (oauthError) {
         toast.error(oauthError);
-        navigate('/login', { replace: true });
+        navigate(ROUTES.LOGIN, { replace: true });
         return;
       }
 
@@ -49,7 +50,7 @@ const AuthCallback = () => {
       }
 
       toast.error('Google sign-in session was not established.');
-      navigate('/login', { replace: true });
+      navigate(ROUTES.LOGIN, { replace: true });
     }, 8000);
 
     finishOAuth().catch((error) => {
@@ -58,7 +59,7 @@ const AuthCallback = () => {
       }
 
       toast.error(getApiErrorMessage(error, 'Unable to complete Google sign-in.'));
-      navigate('/login', { replace: true });
+      navigate(ROUTES.LOGIN, { replace: true });
     });
 
     const {
@@ -77,7 +78,7 @@ const AuthCallback = () => {
         complete(user);
       } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to complete Google sign-in.'));
-        navigate('/login', { replace: true });
+        navigate(ROUTES.LOGIN, { replace: true });
       }
     });
 

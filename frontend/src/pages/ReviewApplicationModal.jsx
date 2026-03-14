@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ROUTES } from '../constants/routes';
 
 const ReviewApplicationModal = () => {
   return (
     <>
-      
+
 
 <div className="fixed inset-0 bg-slate-900/40 modal-blur z-0"></div>
 
@@ -18,7 +19,7 @@ const ReviewApplicationModal = () => {
 <p className="text-xs opacity-90">Proposal ID: 2024/EN/01 • Submitted 24 Oct 2023</p>
 </div>
 </div>
-<Link to="/pp/dashboard" className="hover:bg-white/20 p-2 rounded-full transition-colors">
+<Link to={ROUTES.PP_DASHBOARD} className="hover:bg-white/20 p-2 rounded-full transition-colors">
 <span className="material-symbols-outlined">close</span>
 </Link>
 </div>

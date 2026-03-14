@@ -1,54 +1,57 @@
 import api from './api';
 
+const isNotFoundError = (error) => {
+  return Boolean(error?.response?.status === 404);
+};
+
 const momService = {
-  getMeetings: async () => {
+  listApplications: async (status) => {
+    const response = await api.get('/mom/applications', {
+      params: status ? { status } : undefined,
+    });
+    return response.data;
+  },
+
+  listMeetings: async () => {
     try {
       const response = await api.get('/mom/meetings');
       return response.data;
     } catch (error) {
-      console.error('Error fetching meetings:', error);
-      throw error;
+      if (!isNotFoundError(error)) {
+        throw error;
+      }
+      try {
+        const fallbackResponse = await api.get('/scrutiny/meetings');
+        return fallbackResponse.data;
+      } catch {
+        return [];
+      }
     }
   },
 
-  getMeetingDetails: async (meetingId) => {
-    try {
-      const response = await api.get(`/mom/meetings/${meetingId}`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching meeting ${meetingId}:`, error);
-      throw error;
-    }
+  getGistForApplication: async (appId) => {
+    const response = await api.get(`/mom/applications/${appId}/gist`);
+    return response.data;
   },
 
-  getGist: async (appId) => {
-    try {
-      const response = await api.get(`/mom/applications/${appId}/gist`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error fetching gist for application ${appId}:`, error);
-      throw error;
-    }
+  generateGist: async (appId) => {
+    const response = await api.post(`/mom/applications/${appId}/gist/generate`);
+    return response.data;
   },
 
-  updateMoM: async (appId, meetingId, momText) => {
-    try {
-      const response = await api.post(`/mom/meetings/${meetingId}/applications/${appId}/mom`, { mom_text: momText });
-      return response.data;
-    } catch (error) {
-      console.error(`Error updating MoM for application ${appId} in meeting ${meetingId}:`, error);
-      throw error;
-    }
+  getMoM: async (appId) => {
+    const response = await api.get(`/mom/applications/${appId}/mom`);
+    return response.data;
   },
 
-  finalizeMoM: async (meetingId) => {
-    try {
-      const response = await api.post(`/mom/meetings/${meetingId}/finalize`);
-      return response.data;
-    } catch (error) {
-      console.error(`Error finalizing MoM for meeting ${meetingId}:`, error);
-      throw error;
-    }
+  createOrUpdateMoM: async (appId, content) => {
+    const response = await api.post(`/mom/applications/${appId}/mom`, { content });
+    return response.data;
+  },
+
+  finalizeMoM: async (appId) => {
+    const response = await api.post(`/mom/applications/${appId}/mom/finalize`);
+    return response.data;
   },
 };
 

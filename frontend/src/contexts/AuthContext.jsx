@@ -16,6 +16,14 @@ const fallbackAuthContext = {
   refreshUser: authService.getCurrentUser,
 };
 
+const normalizeRoleName = (role) => {
+  if (!role) return null;
+  if (typeof role === 'string') return role;
+  if (typeof role?.name === 'string') return role.name;
+  if (typeof role?.name?.value === 'string') return role.name.value;
+  return null;
+};
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -35,11 +43,16 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const didInitialize = useRef(false);
+  const authEpochRef = useRef(0);
 
   // ── Background validation (does not block rendering) ──
   const hydrateUser = useCallback(async () => {
+    const requestEpoch = authEpochRef.current;
     try {
       const profile = await authService.restoreSession();
+      if (requestEpoch !== authEpochRef.current) {
+        return null;
+      }
       if (profile) {
         setUser(profile);
         setIsAuthenticated(true);
@@ -49,6 +62,9 @@ export const AuthProvider = ({ children }) => {
       }
       return profile;
     } catch {
+      if (requestEpoch !== authEpochRef.current) {
+        return null;
+      }
       setUser(null);
       setIsAuthenticated(false);
       return null;
@@ -86,6 +102,7 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const handleUnauthorized = () => {
+      authEpochRef.current += 1;
       setUser(null);
       setIsAuthenticated(false);
       setIsLoading(false);
@@ -98,6 +115,7 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = useCallback(async (email, password) => {
+    authEpochRef.current += 1;
     const result = await authService.login(email, password);
     setUser(result.user);
     setIsAuthenticated(true);
@@ -107,6 +125,7 @@ export const AuthProvider = ({ children }) => {
 
 
   const logout = useCallback(async () => {
+    authEpochRef.current += 1;
     try {
       await authService.logout();
     } catch {
@@ -118,7 +137,11 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const refreshUser = useCallback(async () => {
+    const requestEpoch = authEpochRef.current;
     const profile = await authService.getCurrentUser();
+    if (requestEpoch !== authEpochRef.current) {
+      return null;
+    }
     if (profile) {
       setUser(profile);
       setIsAuthenticated(true);
@@ -127,7 +150,9 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const userRoles = useMemo(() => {
-    return (user?.roles || []).map((role) => role.name);
+    return (user?.roles || [])
+      .map((role) => normalizeRoleName(role))
+      .filter(Boolean);
   }, [user]);
 
   const hasRole = useCallback(

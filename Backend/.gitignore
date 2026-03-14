@@ -10,4 +10,6 @@ test_imports.py
 test_out*.txt
 uvicorn_out.log
 uvicorn_err.log
-
+*.db
+.idea/
+tests/

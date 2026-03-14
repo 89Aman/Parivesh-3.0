@@ -1,6 +1,11 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+import csv
+import io
+from datetime import datetime, timezone
 
 from app.core.db import get_db
 from app.core.rbac import require_role
@@ -12,6 +17,7 @@ from app.schemas.application import ApplicationOut
 from app.services.user_service import UserService
 from app.services.template_service import TemplateService
 from app.services.application_service import ApplicationService
+from app.models.application import Application
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -222,3 +228,94 @@ async def delete_user(
     await UserService.delete_user(db, user_id, actor_id=current_user.id)
     await db.commit()
     return None
+
+
+# ──────────────────────────────────────────
+# CSV Export
+# ──────────────────────────────────────────
+
+
+@router.get("/export")
+async def export_applications_csv(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    """Download all applications as a CSV file."""
+    result = await db.execute(
+        select(Application).order_by(Application.created_at.desc())
+    )
+    apps = result.scalars().all()
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "App ID", "Project Name", "Category", "Sector ID",
+        "State", "District", "Status", "Risk Score", "Risk Level",
+        "Submitted", "Applicant ID"
+    ])
+    for app in apps:
+        writer.writerow([
+            str(app.id),
+            app.project_name,
+            app.category,
+            app.sector_id,
+            app.state or "",
+            app.district or "",
+            app.status,
+            app.risk_score,
+            app.risk_level,
+            app.created_at.strftime("%Y-%m-%d") if app.created_at else "",
+            str(app.applicant_id),
+        ])
+
+    today = datetime.now(timezone.utc).strftime("%d%b%Y")
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=parivesh_applications_{today}.csv"},
+    )
+
+
+# ──────────────────────────────────────────
+# Geo Endpoint
+# ──────────────────────────────────────────
+
+
+@router.get("/applications/geo")
+async def applications_geo(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    """Returns applications with lat/long for GIS map view."""
+    result = await db.execute(
+        select(
+            Application.id,
+            Application.project_name,
+            Application.status,
+            Application.category,
+            Application.sector_id,
+            Application.state,
+            Application.district,
+            Application.latitude,
+            Application.longitude,
+        ).filter(
+            Application.latitude.isnot(None),
+            Application.longitude.isnot(None),
+        )
+    )
+    rows = result.all()
+    return [
+        {
+            "id": str(row.id),
+            "project_name": row.project_name,
+            "status": row.status,
+            "category": row.category,
+            "sector_id": row.sector_id,
+            "state": row.state,
+            "district": row.district,
+            "lat": float(row.latitude),
+            "lng": float(row.longitude),
+        }
+        for row in rows
+    ]

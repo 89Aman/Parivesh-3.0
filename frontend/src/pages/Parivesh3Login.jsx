@@ -4,6 +4,7 @@ import { useToast } from '../components/ToastProvider';
 import { useAuth } from '../contexts/AuthContext';
 import { getSafeRouteForUser } from '../services/authService';
 import { getApiErrorMessage } from '../services/api';
+import { ROUTES } from '../constants/routes';
 
 const portalCards = [
   {
@@ -36,6 +37,7 @@ const Parivesh3Login = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [now, setNow] = useState(() => Date.now());
@@ -195,13 +197,13 @@ const Parivesh3Login = () => {
 
               <div className="relative">
                 <input
-                  className="peer block w-full rounded-md border border-gray-200/80 bg-white/90 px-4 pb-2.5 pt-6 text-text-primary transition-all duration-200 placeholder:opacity-0 focus:border-accent focus:bg-white"
+                  className="peer block w-full rounded-md border border-gray-200/80 bg-white/90 px-4 pb-2.5 pt-6 pr-12 text-text-primary transition-all duration-200 placeholder:opacity-0 focus:border-accent focus:bg-white"
                   autoComplete="current-password"
                   id="password"
                   name="password"
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder=" "
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                 />
                 <label
@@ -210,6 +212,16 @@ const Parivesh3Login = () => {
                 >
                   Password
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute inset-y-0 right-3 z-20 flex items-center text-slate-400 transition-colors hover:text-primary"
+                  title={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  <span className="material-symbols-outlined text-[20px]">
+                    {showPassword ? 'visibility_off' : 'visibility'}
+                  </span>
+                </button>
               </div>
 
               <button
@@ -248,7 +260,7 @@ const Parivesh3Login = () => {
             Don&apos;t have an account?{' '}
             <Link
               className="font-semibold text-primary transition-colors duration-200 hover:text-primary-light"
-              to="/register"
+              to={ROUTES.REGISTER}
             >
               Create an account
             </Link>

@@ -1,15 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getDefaultRouteForUser } from '../services/authService';
+import { canAccessPathForUser, getDefaultRouteForUser } from '../services/authService';
+import { ROUTES } from '../constants/routes';
 import PlantLoader from './PlantLoader';
-
-const getPortalPrefix = (path) => {
-  if (path.startsWith('/admin')) return '/admin';
-  if (path.startsWith('/pp')) return '/pp';
-  if (path.startsWith('/committee/scrutiny')) return '/committee/scrutiny';
-  if (path.startsWith('/committee/mom-editor')) return '/committee/mom-editor';
-  return '/';
-};
 
 /**
  * Protects routes that require authentication.
@@ -21,28 +14,32 @@ export const ProtectedRoute = ({ children, requiredRoles }) => {
 
   if (isLoading) {
     return (
-      <PlantLoader
-        title="Growing your secure session..."
-        subtitle="Checking your access permissions."
-      />
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    return <Navigate to={ROUTES.LOGIN} state={{ from: location }} replace />;
   }
 
-  // Ensure a user can only access their canonical portal family.
+  // A partially hydrated session (missing roles) can cause redirect loops on reload.
+  // Bounce to login so session can be re-established cleanly.
+  if (!Array.isArray(user?.roles) || user.roles.length === 0) {
+    return <Navigate to={ROUTES.LOGIN} replace />;
+  }
+
+  // Role mismatch should bounce to the best allowed route for this user.
   const canonicalRoute = getDefaultRouteForUser(user);
-  const canonicalPrefix = getPortalPrefix(canonicalRoute);
-  const currentPrefix = getPortalPrefix(location.pathname);
-  if (currentPrefix !== canonicalPrefix) {
-    return <Navigate to={canonicalRoute} replace />;
+  if (!canAccessPathForUser(user, location.pathname)) {
+    const target = canonicalRoute === location.pathname ? ROUTES.LOGIN : canonicalRoute;
+    return <Navigate to={target} replace />;
   }
 
-  // Role mismatch within same route family should also bounce to canonical route.
   if (requiredRoles && requiredRoles.length > 0 && !hasRole(...requiredRoles)) {
-    return <Navigate to={canonicalRoute} replace />;
+    const target = canonicalRoute === location.pathname ? ROUTES.LOGIN : canonicalRoute;
+    return <Navigate to={target} replace />;
   }
 
   return children;

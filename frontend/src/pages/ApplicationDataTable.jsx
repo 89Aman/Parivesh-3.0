@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
+import PariveshBrand from '../components/PariveshBrand';
 import applicationService from '../services/applicationService';
 import adminService from '../services/adminService';
 import { getApiErrorMessage } from '../services/api';
 import metadataService from '../services/metadataService';
+import { ROUTES } from '../constants/routes';
 
 const statusBadgeStyles = {
   DRAFT: 'bg-slate-100 text-slate-600',
@@ -100,17 +102,14 @@ const ApplicationDataTable = () => {
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white px-6 py-4 md:px-10">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-8">
-            <Link className="flex items-center gap-4 text-primary" to="/pp/dashboard">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-white">
-                <span className="material-symbols-outlined">eco</span>
-              </div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
+            <Link className="flex items-center gap-4 text-primary" to={ROUTES.PP_DASHBOARD}>
+              <PariveshBrand theme="light" />
             </Link>
             <nav className="hidden items-center gap-6 md:flex">
-              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/dashboard">
+              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to={ROUTES.PP_DASHBOARD}>
                 Dashboard
               </Link>
-              <Link className="border-b-2 border-primary py-1 text-sm font-semibold text-primary" to="/pp/applications">
+              <Link className="border-b-2 border-primary py-1 text-sm font-semibold text-primary" to={ROUTES.PP_APPLICATIONS}>
                 Applications
               </Link>
             </nav>
@@ -144,7 +143,7 @@ const ApplicationDataTable = () => {
           </div>
           <Link
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-white shadow-md shadow-primary/20 transition-all hover:brightness-110"
-            to="/pp/new-application"
+            to={ROUTES.PP_NEW_APPLICATION}
           >
             <span className="material-symbols-outlined text-sm">add_circle</span>
             New Application
@@ -207,7 +206,7 @@ const ApplicationDataTable = () => {
                     <tr
                       className="cursor-pointer transition-colors hover:bg-primary/5"
                       key={application.id}
-                      onClick={() => navigate(`/pp/application/${application.id}`)}
+                      onClick={() => navigate(ROUTES.PP_APPLICATION_DETAIL.replace(':appId', application.id))}
                     >
                       <td className="p-4 font-mono text-sm font-semibold text-primary">{application.id.slice(0, 8)}…</td>
                       <td className="p-4">

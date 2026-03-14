@@ -1,25 +1,26 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { ROUTES } from '../constants/routes';
 
 const PremiumDashboardStats = () => {
   return (
     <>
-      
+
 <div className="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
 <div className="layout-container flex h-full grow flex-col">
 <header className="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-slate-800 px-6 py-4 lg:px-20 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
 <div className="flex items-center gap-8">
-<Link to="/" className="flex items-center gap-3 text-primary">
+<Link to={ROUTES.ROOT} className="flex items-center gap-3 text-primary">
 <div className="size-8 bg-primary rounded-lg flex items-center justify-center text-white">
 <span className="material-symbols-outlined">account_balance</span>
 </div>
 <h2 className="text-slate-900 dark:text-slate-100 text-xl font-bold leading-tight tracking-tight">GovPortal</h2>
 </Link>
 <nav className="hidden md:flex items-center gap-8">
-<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to="/admin/dashboard">Overview</Link>
-<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to="/pp/applications">Applications</Link>
-<Link className="text-primary text-sm font-semibold border-b-2 border-primary pb-1" to="/admin/stats">Reports</Link>
-<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to="/admin/dashboard">Users</Link>
+<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to={ROUTES.ADMIN_DASHBOARD}>Overview</Link>
+<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to={ROUTES.PP_APPLICATIONS}>Applications</Link>
+<Link className="text-primary text-sm font-semibold border-b-2 border-primary pb-1" to={ROUTES.ADMIN_ANALYTICS}>Reports</Link>
+<Link className="text-slate-600 dark:text-slate-400 text-sm font-medium hover:text-primary transition-colors" to={ROUTES.ADMIN_DASHBOARD}>Users</Link>
 </nav>
 </div>
 <div className="flex items-center gap-4">

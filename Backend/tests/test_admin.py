@@ -4,7 +4,7 @@ from app.main import app
 from app.core.auth import get_current_user
 from app.models.user import User, Role, UserRoleEnum
 from unittest.mock import AsyncMock, patch
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 
 client = TestClient(app)
@@ -21,7 +21,7 @@ mock_admin = User(
     full_name="Admin User",
     roles=[mock_admin_role],
     is_active=True,
-    created_at=datetime.utcnow()
+    created_at=datetime.now(timezone.utc)
 )
 
 async def override_get_current_admin():
@@ -42,15 +42,15 @@ async def test_list_users(admin_client):
             full_name="User One",
             roles=[mock_admin_role],
             is_active=True,
-            created_at=datetime.utcnow()
+            created_at=datetime.now(timezone.utc)
         )
     ]
-    
+
     with patch("app.services.user_service.UserService.list_users", new_callable=AsyncMock) as mock_list:
         mock_list.return_value = mock_users
-        
+
         response = admin_client.get("/api/v1/admin/users")
-        
+
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
@@ -66,16 +66,16 @@ async def test_list_users_forbidden():
         full_name="PP User",
         roles=[mock_pp_role],
         is_active=True,
-        created_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc)
     )
-    
+
     async def override_get_current_pp():
         return mock_pp
-        
+
     app.dependency_overrides[get_current_user] = override_get_current_pp
-    
+
     response = client.get("/api/v1/admin/users")
     assert response.status_code == 403
     assert response.json()["detail"] == "Operation not permitted"
-    
+
     app.dependency_overrides.clear()

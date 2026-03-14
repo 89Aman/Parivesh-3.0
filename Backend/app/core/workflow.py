@@ -34,7 +34,7 @@ TRANSITIONS: dict[ApplicationStatus, dict[ApplicationStatus, list[str]]] = {
         ApplicationStatus.UNDER_SCRUTINY: ["PP", "RQP"],
     },
     ApplicationStatus.REFERRED: {
-        ApplicationStatus.MOM_GENERATED: ["SCRUTINY"],
+        ApplicationStatus.MOM_GENERATED: ["SCRUTINY", "MOM"],
     },
     ApplicationStatus.MOM_GENERATED: {
         ApplicationStatus.FINALIZED: ["MOM"],
@@ -62,12 +62,12 @@ async def transition_status(
     # Also check by value if Enum lookup failed
     if not allowed_targets and hasattr(current, "value"):
          allowed_targets = TRANSITIONS.get(current, {}) # Should work
-    
+
     # Simple lookup by value in TRANSITIONS if needed, but TRANSITIONS keys are ApplicationStatus
     # Let's ensure current is converted to ApplicationStatus if it's a string
     if isinstance(current, str):
         current = ApplicationStatus(current)
-    
+
     allowed_targets = TRANSITIONS.get(current, {})
 
     if target_status not in allowed_targets:

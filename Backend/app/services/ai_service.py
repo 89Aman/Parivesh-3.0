@@ -30,6 +30,13 @@ def _get_genai_client():
     if _genai_client is None:
         try:
             from google import genai
+        except ImportError as e:
+            logger.error("google-genai package is not installed: %s", e)
+            raise RuntimeError(
+                "AI service dependency missing: install 'google-genai' in the backend environment."
+            ) from e
+
+        try:
             api_key = settings.GOOGLE_API_KEY
             if not api_key:
                 raise ValueError("GOOGLE_API_KEY not set in environment")

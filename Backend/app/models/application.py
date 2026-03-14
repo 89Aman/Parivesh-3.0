@@ -52,6 +52,8 @@ class Application(Base):
         default=ApplicationStatus.DRAFT,
     )
     eds_cycle_count = Column(Integer, nullable=False, default=0)
+    risk_score = Column(Integer, nullable=False, default=0)
+    risk_level = Column(String, nullable=False, default="LOW")
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

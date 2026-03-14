@@ -2,16 +2,20 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
+import PariveshBrand from '../components/PariveshBrand';
 import { Skeleton, SkeletonCard, SkeletonTableRows, SkeletonText } from '../components/Skeleton';
 import adminService from '../services/adminService';
 import { getApiErrorMessage } from '../services/api';
+import NotificationBell from '../components/NotificationBell';
+import ThemeToggle from '../components/ThemeToggle';
+import { ROUTES } from '../constants/routes';
 
 const roleStyles = {
-  ADMIN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-  PP: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  RQP: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  SCRUTINY: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  MOM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  ADMIN: 'bg-red-500/15 text-red-300 border border-red-500/20',
+  PP: 'bg-fuchsia-500/15 text-fuchsia-300 border border-fuchsia-500/20',
+  RQP: 'bg-violet-500/15 text-violet-300 border border-violet-500/20',
+  SCRUTINY: 'bg-blue-500/15 text-blue-300 border border-blue-500/20',
+  MOM: 'bg-amber-500/15 text-amber-300 border border-amber-500/20',
 };
 
 const getInitials = (name) => {
@@ -41,6 +45,13 @@ const getRangeStartDate = (rangeKey) => {
   return new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 };
 
+const toSafeArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (Array.isArray(value?.items)) return value.items;
+  if (Array.isArray(value?.results)) return value.results;
+  return [];
+};
+
 const AdminPortalDashboard = () => {
   const navigate = useNavigate();
   const toast = useToast();
@@ -53,6 +64,7 @@ const AdminPortalDashboard = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
@@ -81,8 +93,8 @@ const AdminPortalDashboard = () => {
           adminService.getApplications(),
         ]);
         if (!isActive) return;
-        setUsers(usersData);
-        setApplications(applicationsData);
+        setUsers(toSafeArray(usersData));
+        setApplications(toSafeArray(applicationsData));
       } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load admin dashboard data.'));
       } finally {
@@ -106,7 +118,7 @@ const AdminPortalDashboard = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login', { replace: true });
+    navigate(ROUTES.LOGIN, { replace: true });
   };
 
   const handleCreateUser = async (e) => {
@@ -121,6 +133,7 @@ const AdminPortalDashboard = () => {
       const created = await adminService.createUser(newUserForm);
       setUsers((prev) => [...prev, created]);
       setShowCreateModal(false);
+      setShowCreatePassword(false);
       setNewUserForm({ email: '', password: '', full_name: '', organization: '', phone: '', role_name: 'PP' });
       toast.success(`User "${created.full_name}" created successfully.`);
     } catch (error) {
@@ -213,36 +226,48 @@ const AdminPortalDashboard = () => {
 
   return (
     <>
-      <div className="flex h-screen overflow-hidden">
+      <div className="flex h-screen overflow-hidden bg-[#070f07] text-white">
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute -top-32 left-8 h-80 w-80 rounded-full bg-[#22c55e]/6 blur-3xl" />
+          <div className="absolute right-0 top-24 h-96 w-96 rounded-full bg-blue-500/5 blur-3xl" />
+          <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-amber-500/5 blur-3xl" />
+        </div>
+
         {/* Sidebar */}
-        <aside className="w-[280px] bg-slate-950 text-white flex flex-col shrink-0 border-r border-white/5 relative z-50">
-          <Link to="/" className="p-6 flex items-center gap-3 border-b border-white/5 group">
-            <div className="size-10 bg-primary/20 flex items-center justify-center rounded-lg text-primary transition-all group-hover:bg-primary/30 group-hover:shadow-[0_0_15px_rgba(23,207,109,0.3)]">
-              <span className="material-symbols-outlined font-icon-bold text-2xl">account_balance</span>
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-white font-black text-lg leading-tight tracking-tight">PARIVESH 3.0</h1>
-              <p className="text-[10px] text-primary/70 uppercase tracking-widest font-bold">Admin Portal</p>
-            </div>
+        <aside className="relative z-50 flex w-[290px] shrink-0 flex-col border-r border-white/10 bg-[#091209]/90 text-white backdrop-blur-xl">
+          <Link to={ROUTES.ROOT} className="flex items-center gap-3 border-b border-white/10 p-6 group">
+            <PariveshBrand className="transition-all group-hover:opacity-90" subtitle="Admin Portal" theme="dark" />
           </Link>
 
-          <nav className="flex-1 px-4 py-6 space-y-1 overflow-y-auto">
-            <Link className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white font-bold transition-all shadow-lg shadow-primary/20" to="/admin/dashboard">
+          <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
+            <Link className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-[#22c55e]/20 to-[#22c55e]/8 px-3 py-3 font-bold text-white ring-1 ring-[#22c55e]/15 transition-all shadow-lg shadow-[#22c55e]/10" to={ROUTES.ADMIN_DASHBOARD}>
               <span className="material-symbols-outlined">group</span>
               <span className="text-sm">User Management</span>
             </Link>
+            <Link className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-white/55 hover:bg-white/[0.05] hover:text-white transition-all" to={ROUTES.ADMIN_ANALYTICS}>
+              <span className="material-symbols-outlined">bar_chart</span>
+              <span className="text-sm">Analytics</span>
+            </Link>
+            <Link className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-white/55 hover:bg-white/[0.05] hover:text-white transition-all" to={ROUTES.ADMIN_MAP}>
+              <span className="material-symbols-outlined">map</span>
+              <span className="text-sm">Map View</span>
+            </Link>
+            <Link className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-white/55 hover:bg-white/[0.05] hover:text-white transition-all" to={ROUTES.ADMIN_COMPLIANCE}>
+              <span className="material-symbols-outlined">assignment</span>
+              <span className="text-sm">Compliance Monitor</span>
+            </Link>
           </nav>
 
-          <div className="p-4 bg-slate-900/50 border-t border-white/5">
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/5">
-              <div className="size-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs border border-primary/20 shadow-[0_0_10px_rgba(23,207,109,0.1)]">
+          <div className="border-t border-white/10 bg-black/10 p-4">
+            <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3">
+              <div className="flex size-10 items-center justify-center rounded-full border border-[#22c55e]/20 bg-[#22c55e]/15 text-xs font-bold text-[#22c55e] shadow-[0_0_10px_rgba(34,197,94,0.12)]">
                 {getInitials(user?.full_name)}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-white truncate">{user?.full_name || 'Admin'}</p>
-                <p className="text-[10px] text-slate-500 truncate">{user?.email}</p>
+                <p className="text-[10px] text-white/35 truncate">{user?.email}</p>
               </div>
-              <button className="text-slate-500 hover:text-red-400 transition-colors" onClick={handleLogout} title="Logout">
+              <button className="text-white/35 hover:text-red-400 transition-colors" onClick={handleLogout} title="Logout">
                 <span className="material-symbols-outlined text-lg">logout</span>
               </button>
             </div>
@@ -250,16 +275,30 @@ const AdminPortalDashboard = () => {
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col overflow-y-auto bg-background-light dark:bg-background-dark">
-          <header className="sticky top-0 z-10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-primary/5 px-8 py-4 flex justify-between items-center">
+        <main className="relative flex flex-1 flex-col overflow-y-auto bg-transparent">
+          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#091209]/75 px-8 py-4 backdrop-blur-xl">
             <div>
-              <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">User Management</h2>
-              <p className="text-sm text-slate-500">Manage system users, assign roles, and create new accounts.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#22c55e]/65">Operations Console</p>
+              <h2 className="text-2xl font-black tracking-tight text-white">User Management</h2>
+              <p className="text-sm text-white/40">Manage system users, assign roles, and create new accounts.</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <NotificationBell />
+              <a
+                href="/api/v1/admin/export"
+                download
+                className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2 text-sm font-semibold text-white/75 transition-all hover:bg-white/[0.08] hover:text-white"
+              >
+                <span className="material-symbols-outlined text-sm">download</span>
+                Export CSV
+              </a>
               <button
-                className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-semibold transition-all shadow-lg shadow-primary/20"
-                onClick={() => setShowCreateModal(true)}
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#22c55e] to-emerald-400 px-4 py-2 text-sm font-semibold text-[#062706] transition-all shadow-lg shadow-[#22c55e]/20 hover:scale-[1.02]"
+                onClick={() => {
+                  setShowCreatePassword(false);
+                  setShowCreateModal(true);
+                }}
               >
                 <span className="material-symbols-outlined text-sm">add</span>
                 Create New User
@@ -271,10 +310,10 @@ const AdminPortalDashboard = () => {
             {/* Stats */}
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Performance Snapshot</h3>
-                <p className="text-sm text-slate-500">Track applications and pipeline health by timeframe.</p>
+                <h3 className="text-lg font-bold text-white">Performance Snapshot</h3>
+                <p className="text-sm text-white/40">Track applications and pipeline health by timeframe.</p>
               </div>
-              <div className="inline-flex rounded-xl border border-primary/10 bg-white p-1 shadow-sm dark:bg-slate-900">
+              <div className="inline-flex rounded-2xl border border-white/10 bg-white/[0.04] p-1 shadow-sm backdrop-blur-sm">
                 {RANGE_OPTIONS.map((option) => (
                   <button
                     key={option.key}
@@ -282,8 +321,8 @@ const AdminPortalDashboard = () => {
                     onClick={() => setStatsRange(option.key)}
                     className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
                       statsRange === option.key
-                        ? 'bg-primary text-white shadow'
-                        : 'text-slate-600 hover:bg-primary/10 hover:text-primary dark:text-slate-300'
+                        ? 'bg-[#22c55e] text-[#062706] shadow'
+                        : 'text-white/55 hover:bg-white/[0.05] hover:text-white'
                     }`}
                   >
                     {option.label}
@@ -303,36 +342,36 @@ const AdminPortalDashboard = () => {
                 </>
               ) : (
                 <>
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+              <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-blue-500/12 to-blue-500/4 p-6 shadow-2xl shadow-black/20 backdrop-blur-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Applications</span>
-                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{totalApplications}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Total Applications</span>
+                    <span className="mt-1 text-3xl font-black leading-none text-white">{totalApplications}</span>
                   </div>
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-xl text-blue-500 group-hover:scale-110 transition-transform duration-300">
+                  <div className="rounded-2xl bg-blue-500/12 p-3 text-blue-300 group-hover:scale-110 transition-transform duration-300">
                     <span className="material-symbols-outlined !text-3xl">description</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 rounded-full">
+                  <span className="flex items-center rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-bold text-blue-300">
                     <span className="material-symbols-outlined !text-xs">groups</span> Applicants: {totalApplicants}
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-500">Realtime total proposals in system</div>
+                <div className="text-[11px] text-white/40">Realtime total proposals in system</div>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+              <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-red-500/12 to-red-500/4 p-6 shadow-2xl shadow-black/20 backdrop-blur-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Pending Review</span>
-                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{pendingApplications}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Pending Review</span>
+                    <span className="mt-1 text-3xl font-black leading-none text-white">{pendingApplications}</span>
                   </div>
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl text-red-500 group-hover:scale-110 transition-transform duration-300">
+                  <div className="rounded-2xl bg-red-500/12 p-3 text-red-300 group-hover:scale-110 transition-transform duration-300">
                     <span className="material-symbols-outlined !text-3xl">warning</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full">
+                  <span className="flex items-center rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-bold text-red-300">
                     <span className="material-symbols-outlined !text-xs">report</span> EDS: {statusCounts.EDS || 0}
                   </span>
                 </div>
@@ -341,18 +380,18 @@ const AdminPortalDashboard = () => {
                 </svg>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+              <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-emerald-500/12 to-emerald-500/4 p-6 shadow-2xl shadow-black/20 backdrop-blur-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Finalized</span>
-                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{finalizedApplications}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Finalized</span>
+                    <span className="mt-1 text-3xl font-black leading-none text-white">{finalizedApplications}</span>
                   </div>
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl text-emerald-500 group-hover:scale-110 transition-transform duration-300">
+                  <div className="rounded-2xl bg-emerald-500/12 p-3 text-emerald-300 group-hover:scale-110 transition-transform duration-300">
                     <span className="material-symbols-outlined !text-3xl">verified</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 mb-4">
-                  <span className="flex items-center text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                  <span className="flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
                     <span className="material-symbols-outlined !text-xs">check_circle</span> Completion: {completionRate}%
                   </span>
                 </div>
@@ -361,17 +400,17 @@ const AdminPortalDashboard = () => {
                 </svg>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-primary/10 shadow-sm relative overflow-hidden group">
+              <div className="group relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-amber-500/12 to-amber-500/4 p-6 shadow-2xl shadow-black/20 backdrop-blur-sm">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Live Pipeline</span>
-                    <span className="text-3xl font-black text-slate-900 dark:text-slate-100 leading-none mt-1">{statusCounts.UNDER_SCRUTINY || 0}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/40">Live Pipeline</span>
+                    <span className="mt-1 text-3xl font-black leading-none text-white">{statusCounts.UNDER_SCRUTINY || 0}</span>
                   </div>
-                  <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl text-amber-500 group-hover:scale-110 transition-transform duration-300">
+                  <div className="rounded-2xl bg-amber-500/12 p-3 text-amber-300 group-hover:scale-110 transition-transform duration-300">
                     <span className="material-symbols-outlined !text-3xl">pending_actions</span>
                   </div>
                 </div>
-                <div className="text-[11px] text-slate-500">
+                <div className="text-[11px] text-white/40">
                   Submitted: {statusCounts.SUBMITTED || 0} • Referred: {statusCounts.REFERRED || 0}
                 </div>
               </div>
@@ -379,13 +418,13 @@ const AdminPortalDashboard = () => {
               )}
             </div>            {/* User Table */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-              <div className="xl:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-primary/10 shadow-sm overflow-hidden flex flex-col">
-                <div className="px-6 py-5 border-b border-primary/5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">User Directory</h3>
+              <div className="xl:col-span-2 flex flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] shadow-2xl shadow-black/20 backdrop-blur-sm">
+                <div className="flex flex-col items-start justify-between gap-4 border-b border-white/10 px-6 py-5 sm:flex-row sm:items-center">
+                  <h3 className="text-lg font-bold text-white">User Directory</h3>
                   <div className="relative w-full sm:w-80">
-                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xl">search</span>
+                    <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white/25 text-xl">search</span>
                     <input
-                      className="w-full pl-10 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary/20 focus:bg-white transition-all text-slate-900 dark:text-slate-100"
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.05] py-2 pl-10 pr-4 text-sm text-white placeholder:text-white/25 transition-all focus:bg-white/[0.07]"
                       placeholder="Search users..."
                       type="text"
                       value={searchQuery}
@@ -397,35 +436,35 @@ const AdminPortalDashboard = () => {
                   {isLoading ? (
                     <SkeletonTableRows rows={6} cols={3} />
                   ) : (
-                  <table className="w-full text-left border-collapse">
+                  <table className="w-full border-collapse text-left">
                     <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 uppercase text-[11px] font-bold tracking-widest">
+                      <tr className="bg-white/[0.03] text-[11px] font-bold uppercase tracking-[0.18em] text-white/35">
                         <th className="px-6 py-4">User Details</th>
                         <th className="px-6 py-4">Roles</th>
                         <th className="px-6 py-4 text-right">Actions</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-primary/5">
+                    <tbody className="divide-y divide-white/5">
                       {filteredUsers.length === 0 ? (
-                        <tr><td colSpan="3" className="px-6 py-8 text-center text-sm text-slate-500">No users found.</td></tr>
+                        <tr><td colSpan="3" className="px-6 py-8 text-center text-sm text-white/45">No users found.</td></tr>
                       ) : (
                         filteredUsers.map((u) => (
-                          <tr key={u.id} className="hover:bg-primary/5 transition-colors">
+                          <tr key={u.id} className="transition-colors hover:bg-white/[0.03]">
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="size-8 bg-primary/10 rounded-full flex items-center justify-center text-primary font-bold text-[10px] uppercase">
+                                <div className="flex size-9 items-center justify-center rounded-full bg-[#22c55e]/15 text-[10px] font-bold uppercase text-[#22c55e]">
                                   {getInitials(u.full_name)}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate">{u.full_name}</p>
-                                  <p className="text-[10px] text-slate-500 truncate">{u.email}</p>
+                                  <p className="truncate text-sm font-bold text-white">{u.full_name}</p>
+                                  <p className="truncate text-[10px] text-white/35">{u.email}</p>
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
                                 {(u.roles || []).map((r) => (
-                                  <span key={r.id} className={`px-1.5 py-0.5 rounded-[4px] text-[9px] font-black uppercase tracking-tighter ${roleStyles[r.name] || 'bg-slate-100 text-slate-600'}`}>
+                                  <span key={r.id} className={`rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-tighter ${roleStyles[r.name] || 'border border-white/10 bg-white/10 text-white/60'}`}>
                                     {r.name}
                                   </span>
                                 ))}
@@ -433,8 +472,8 @@ const AdminPortalDashboard = () => {
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex justify-end gap-1">
-                                <button className="text-slate-400 hover:text-primary p-1 transition-colors" onClick={() => handleOpenEditModal(u)}><span className="material-symbols-outlined text-lg">edit</span></button>
-                                <button className="text-slate-400 hover:text-red-500 p-1 transition-colors" onClick={() => handleDeleteUser(u)}><span className="material-symbols-outlined text-lg">delete</span></button>
+                                <button className="p-1 text-white/35 transition-colors hover:text-[#22c55e]" onClick={() => handleOpenEditModal(u)}><span className="material-symbols-outlined text-lg">edit</span></button>
+                                <button className="p-1 text-white/35 transition-colors hover:text-red-400" onClick={() => handleDeleteUser(u)}><span className="material-symbols-outlined text-lg">delete</span></button>
                               </div>
                             </td>
                           </tr>
@@ -444,16 +483,16 @@ const AdminPortalDashboard = () => {
                   </table>
                   )}
                 </div>
-                <div className="px-6 py-3 border-t border-primary/5 text-[10px] text-slate-400 font-medium">
+                <div className="border-t border-white/10 px-6 py-3 text-[10px] font-medium text-white/30">
                   Showing {filteredUsers.length} users
                 </div>
               </div>
 
               {/* Recent Activity Side Section */}
-              <div className="bg-white dark:bg-slate-900 rounded-xl border border-primary/10 shadow-sm p-6 flex flex-col">
+              <div className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl shadow-black/20 backdrop-blur-sm">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 tracking-tight">Recent Activity</h3>
-                  <span className="material-symbols-outlined text-primary text-xl">history</span>
+                  <h3 className="text-lg font-bold tracking-tight text-white">Recent Activity</h3>
+                  <span className="material-symbols-outlined text-[#22c55e] text-xl">history</span>
                 </div>
                 <div className="space-y-6 flex-1">
                   {isLoading ? (
@@ -478,7 +517,7 @@ const AdminPortalDashboard = () => {
                       </div>
                     </div>
                   ) : recentApplications.length === 0 ? (
-                    <p className="text-sm text-slate-500">No recent application activity.</p>
+                    <p className="text-sm text-white/45">No recent application activity.</p>
                   ) : (
                     recentApplications.map((app) => {
                       const status = app.status || 'UNKNOWN';
@@ -487,7 +526,7 @@ const AdminPortalDashboard = () => {
                       const isScrutiny = status === 'UNDER_SCRUTINY';
                       const icon = isFinal ? 'task_alt' : isEds ? 'report' : isScrutiny ? 'pending_actions' : 'description';
                       const color = isFinal ? 'text-emerald-500' : isEds ? 'text-red-500' : isScrutiny ? 'text-amber-500' : 'text-blue-500';
-                      const bg = isFinal ? 'bg-emerald-50 dark:bg-emerald-900/20' : isEds ? 'bg-red-50 dark:bg-red-900/20' : isScrutiny ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-blue-50 dark:bg-blue-900/20';
+                      const bg = isFinal ? 'bg-emerald-500/12' : isEds ? 'bg-red-500/12' : isScrutiny ? 'bg-amber-500/12' : 'bg-blue-500/12';
 
                       return (
                         <div key={app.id} className="flex gap-4 group cursor-default">
@@ -495,8 +534,8 @@ const AdminPortalDashboard = () => {
                             <span className="material-symbols-outlined !text-xl">{icon}</span>
                           </div>
                           <div className="flex flex-col min-w-0">
-                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{app.project_name || `Application ${String(app.id).slice(0, 8)}`}</p>
-                            <p className="text-[10px] text-slate-500 truncate">
+                            <p className="truncate text-sm font-bold text-white">{app.project_name || `Application ${String(app.id).slice(0, 8)}`}</p>
+                            <p className="truncate text-[10px] text-white/35">
                               {formatStatusLabel(status)} • #{String(app.id).slice(0, 8)}
                             </p>
                           </div>
@@ -509,12 +548,12 @@ const AdminPortalDashboard = () => {
             </div>
           </div>
 
-          <footer className="mt-auto px-8 py-6 border-t border-primary/5 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-400 text-xs">
+          <footer className="mt-auto flex flex-col items-center justify-between gap-4 border-t border-white/10 px-8 py-6 text-xs text-white/30 md:flex-row">
             <p>© 2024 Ministry of Environment, Forest and Climate Change. All Rights Reserved.</p>
             <div className="flex gap-6 uppercase tracking-widest font-bold">
-              <a className="hover:text-primary transition-colors" href="#">Privacy Policy</a>
-              <a className="hover:text-primary transition-colors" href="#">Terms of Service</a>
-              <a className="hover:text-primary transition-colors" href="#">Help Desk</a>
+              <a className="transition-colors hover:text-[#22c55e]" href="#">Privacy Policy</a>
+              <a className="transition-colors hover:text-[#22c55e]" href="#">Terms of Service</a>
+              <a className="transition-colors hover:text-[#22c55e]" href="#">Help Desk</a>
             </div>
           </footer>
         </main>
@@ -523,14 +562,14 @@ const AdminPortalDashboard = () => {
       {/* Create User Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg mx-4 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-primary/10 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-primary/10">
+          <div className="mx-4 w-full max-w-lg overflow-hidden rounded-[28px] border border-white/10 bg-[#0a140a] shadow-2xl shadow-black/70">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Create New User</h3>
-                <p className="text-sm text-slate-500">Only administrators can create new user accounts.</p>
+                <h3 className="text-lg font-bold text-white">Create New User</h3>
+                <p className="text-sm text-white/40">Only administrators can create new user accounts.</p>
               </div>
               <button
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-white/35 transition-colors hover:text-white"
                 onClick={() => setShowCreateModal(false)}
               >
                 <span className="material-symbols-outlined">close</span>
@@ -539,9 +578,9 @@ const AdminPortalDashboard = () => {
             <form className="p-6 space-y-4" onSubmit={handleCreateUser}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name *</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Full Name *</label>
                   <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     type="text"
                     required
                     value={newUserForm.full_name}
@@ -549,9 +588,9 @@ const AdminPortalDashboard = () => {
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Email Address *</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Email Address *</label>
                   <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     type="email"
                     required
                     value={newUserForm.email}
@@ -559,37 +598,49 @@ const AdminPortalDashboard = () => {
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Password *</label>
-                  <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                    type="password"
-                    required
-                    value={newUserForm.password}
-                    onChange={(e) => setNewUserForm((f) => ({ ...f, password: e.target.value }))}
-                  />
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Password *</label>
+                  <div className="relative">
+                    <input
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 pr-12 text-sm text-white"
+                      type={showCreatePassword ? 'text' : 'password'}
+                      required
+                      value={newUserForm.password}
+                      onChange={(e) => setNewUserForm((f) => ({ ...f, password: e.target.value }))}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCreatePassword((value) => !value)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/35 transition-colors hover:text-[#22c55e]"
+                      title={showCreatePassword ? 'Hide password' : 'Show password'}
+                    >
+                      <span className="material-symbols-outlined text-[20px]">
+                        {showCreatePassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Organization</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Organization</label>
                   <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     type="text"
                     value={newUserForm.organization}
                     onChange={(e) => setNewUserForm((f) => ({ ...f, organization: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Phone</label>
                   <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     type="text"
                     value={newUserForm.phone}
                     onChange={(e) => setNewUserForm((f) => ({ ...f, phone: e.target.value }))}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Assign Role *</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Assign Role *</label>
                   <select
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     value={newUserForm.role_name}
                     onChange={(e) => setNewUserForm((f) => ({ ...f, role_name: e.target.value }))}
                   >
@@ -601,10 +652,10 @@ const AdminPortalDashboard = () => {
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-primary/10">
+              <div className="flex justify-end gap-3 border-t border-white/10 pt-4">
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-white/55 transition-colors hover:text-white"
                   onClick={() => setShowCreateModal(false)}
                 >
                   Cancel
@@ -612,7 +663,7 @@ const AdminPortalDashboard = () => {
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#22c55e] to-emerald-400 px-6 py-2 text-sm font-bold text-[#062706] shadow-lg shadow-[#22c55e]/20 transition-all disabled:cursor-not-allowed disabled:opacity-70 hover:scale-[1.02]"
                 >
                   {isCreating ? (
                     <>
@@ -635,14 +686,14 @@ const AdminPortalDashboard = () => {
       {/* Edit User Modal */}
       {showEditModal && editingUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="w-full max-w-lg mx-4 rounded-2xl bg-white dark:bg-slate-900 shadow-2xl border border-primary/10 overflow-hidden">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-primary/10">
+          <div className="mx-4 w-full max-w-lg overflow-hidden rounded-[28px] border border-white/10 bg-[#0a140a] shadow-2xl shadow-black/70">
+            <div className="flex items-center justify-between border-b border-white/10 px-6 py-5">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Edit User</h3>
-                <p className="text-sm text-slate-500">Update profile fields and assigned role.</p>
+                <h3 className="text-lg font-bold text-white">Edit User</h3>
+                <p className="text-sm text-white/40">Update profile fields and assigned role.</p>
               </div>
               <button
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-white/35 transition-colors hover:text-white"
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingUser(null);
@@ -654,9 +705,9 @@ const AdminPortalDashboard = () => {
             <form className="p-6 space-y-4" onSubmit={handleUpdateUser}>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Full Name *</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Full Name *</label>
                   <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     type="text"
                     required
                     value={editUserForm.full_name}
@@ -664,27 +715,27 @@ const AdminPortalDashboard = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Organization</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Organization</label>
                   <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     type="text"
                     value={editUserForm.organization}
                     onChange={(e) => setEditUserForm((f) => ({ ...f, organization: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Phone</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Phone</label>
                   <input
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     type="text"
                     value={editUserForm.phone}
                     onChange={(e) => setEditUserForm((f) => ({ ...f, phone: e.target.value }))}
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Assigned Role *</label>
+                  <label className="mb-1 block text-sm font-semibold text-white/70">Assigned Role *</label>
                   <select
-                    className="w-full rounded-lg border border-primary/20 bg-slate-50 dark:bg-slate-800 p-2.5 text-sm text-slate-900 dark:text-white focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    className="w-full rounded-xl border border-white/10 bg-white/[0.05] p-2.5 text-sm text-white"
                     value={editUserForm.role_name}
                     onChange={(e) => setEditUserForm((f) => ({ ...f, role_name: e.target.value }))}
                   >
@@ -696,10 +747,10 @@ const AdminPortalDashboard = () => {
                   </select>
                 </div>
               </div>
-              <div className="flex justify-end gap-3 pt-4 border-t border-primary/10">
+              <div className="flex justify-end gap-3 border-t border-white/10 pt-4">
                 <button
                   type="button"
-                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-white/55 transition-colors hover:text-white"
                   onClick={() => {
                     setShowEditModal(false);
                     setEditingUser(null);
@@ -710,7 +761,7 @@ const AdminPortalDashboard = () => {
                 <button
                   type="submit"
                   disabled={isUpdating}
-                  className="px-6 py-2 bg-primary text-white rounded-lg text-sm font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2"
+                  className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#22c55e] to-emerald-400 px-6 py-2 text-sm font-bold text-[#062706] shadow-lg shadow-[#22c55e]/20 transition-all disabled:cursor-not-allowed disabled:opacity-70 hover:scale-[1.02]"
                 >
                   {isUpdating ? (
                     <>

@@ -67,8 +67,7 @@ class EDSService:
         db.add(audit)
 
         await db.flush()
-        await db.refresh(eds)
-        return eds
+        return await EDSService.get_current_eds(db, app_id)
 
     @staticmethod
     async def get_current_eds(db: AsyncSession, app_id: UUID) -> EDSRequest | None:

@@ -1,7 +1,3 @@
-# Lightweight image for Cloud Run — no npm install stage.
-# The frontend is pre-built by the 'build-frontend' Cloud Build step
-# and the dist folder is copied directly into the image.
-
 FROM python:3.12-slim
 WORKDIR /app
 
@@ -18,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY Backend/app ./app
 
-# Copy the pre-built frontend (produced by the cloudbuild.yaml npm step).
+
 COPY frontend/dist ./frontend_dist
 
 EXPOSE 8080

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
+import PariveshBrand from '../components/PariveshBrand';
 import applicationService from '../services/applicationService';
 import metadataService from '../services/metadataService';
 import { getApiErrorMessage } from '../services/api';
+import { ROUTES } from '../constants/routes';
 
 const statusConfig = {
   DRAFT: {
@@ -78,7 +80,7 @@ const ApplicationWorkflowTimeline = () => {
 
   useEffect(() => {
     if (!appId) {
-      navigate('/pp/applications', { replace: true });
+      navigate(ROUTES.PP_APPLICATIONS, { replace: true });
       return;
     }
 
@@ -99,7 +101,7 @@ const ApplicationWorkflowTimeline = () => {
         setSectorMap(Object.fromEntries(sectors.map((sector) => [sector.id, sector.name])));
       } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load workflow details.'));
-        navigate('/pp/applications', { replace: true });
+        navigate(ROUTES.PP_APPLICATIONS, { replace: true });
       } finally {
         if (isActive) {
           setIsLoading(false);
@@ -144,24 +146,21 @@ const ApplicationWorkflowTimeline = () => {
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white px-6 py-4 md:px-10">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-8">
-            <Link className="flex items-center gap-4 text-primary" to="/pp/dashboard">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-white">
-                <span className="material-symbols-outlined">eco</span>
-              </div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
+            <Link className="flex items-center gap-4 text-primary" to={ROUTES.PP_DASHBOARD}>
+              <PariveshBrand theme="light" />
             </Link>
             <nav className="hidden items-center gap-6 md:flex">
-              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/dashboard">
+              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to={ROUTES.PP_DASHBOARD}>
                 Dashboard
               </Link>
-              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/applications">
+              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to={ROUTES.PP_APPLICATIONS}>
                 Applications
               </Link>
             </nav>
           </div>
           <Link
             className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-primary/20 hover:text-primary"
-            to={`/pp/application/${app.id}`}
+            to={ROUTES.PP_APPLICATION_DETAIL.replace(':appId', app.id)}
           >
             <span className="material-symbols-outlined text-lg">arrow_back</span>
             Back to application
@@ -306,14 +305,14 @@ const ApplicationWorkflowTimeline = () => {
               <div className="mt-4 flex flex-col gap-3">
                 <Link
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/10"
-                  to={`/pp/application/${app.id}`}
+                  to={ROUTES.PP_APPLICATION_DETAIL.replace(':appId', app.id)}
                 >
                   <span className="material-symbols-outlined text-lg">description</span>
                   Open application details
                 </Link>
                 <Link
                   className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-600 hover:border-primary/20 hover:text-primary"
-                  to="/pp/applications"
+                  to={ROUTES.PP_APPLICATIONS}
                 >
                   <span className="material-symbols-outlined text-lg">grid_view</span>
                   Return to registry

@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
+import PariveshBrand from '../components/PariveshBrand';
 import { getApiErrorMessage } from '../services/api';
 import applicationService from '../services/applicationService';
 import metadataService from '../services/metadataService';
+import { ROUTES } from '../constants/routes';
 
 const DRAFT_STORAGE_KEY = 'parivesh-new-application-draft';
 
@@ -249,7 +251,7 @@ const PPPortalNewApplicationForm = () => {
 
       window.sessionStorage.removeItem(DRAFT_STORAGE_KEY);
       toast.success('Application draft created.');
-      navigate(`/pp/application/${created.id}`, {
+      navigate(ROUTES.PP_APPLICATION_DETAIL.replace(':appId', created.id), {
         replace: true,
         state: { fromCreate: true },
       });
@@ -269,17 +271,14 @@ const PPPortalNewApplicationForm = () => {
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
       <header className="border-b border-primary/10 bg-white px-6 py-3 md:px-20 lg:px-40">
         <div className="flex items-center justify-between gap-4">
-          <button className="flex items-center gap-4 text-primary" onClick={() => handleGuardedNavigation('/pp/dashboard')} type="button">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-white">
-              <span className="material-symbols-outlined">eco</span>
-            </div>
-            <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
+          <button className="flex items-center gap-4 text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_DASHBOARD)} type="button">
+            <PariveshBrand theme="light" />
           </button>
           <nav className="hidden items-center gap-6 md:flex">
-            <button className="text-sm font-medium text-slate-600 hover:text-primary" onClick={() => handleGuardedNavigation('/pp/dashboard')} type="button">
+            <button className="text-sm font-medium text-slate-600 hover:text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_DASHBOARD)} type="button">
               Dashboard
             </button>
-            <button className="text-sm font-medium text-slate-600 hover:text-primary" onClick={() => handleGuardedNavigation('/pp/applications')} type="button">
+            <button className="text-sm font-medium text-slate-600 hover:text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_APPLICATIONS)} type="button">
               Applications
             </button>
           </nav>
@@ -463,7 +462,7 @@ const PPPortalNewApplicationForm = () => {
               </div>
 
               <div className="flex flex-col-reverse justify-between gap-4 border-t border-primary/10 pt-6 sm:flex-row sm:items-center">
-                <button className="text-left text-sm font-semibold text-slate-500 hover:text-primary" onClick={() => handleGuardedNavigation('/pp/dashboard')} type="button">
+                <button className="text-left text-sm font-semibold text-slate-500 hover:text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_DASHBOARD)} type="button">
                   Cancel and return to dashboard
                 </button>
                 <button className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-8 py-3 font-bold text-white shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-70" disabled={isSubmitting} type="submit">

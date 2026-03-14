@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
+import PariveshBrand from '../components/PariveshBrand';
 import applicationService from '../services/applicationService';
 import metadataService from '../services/metadataService';
 import { getApiErrorMessage } from '../services/api';
+import { ROUTES } from '../constants/routes';
 
 const statusConfig = {
   DRAFT: { label: 'Draft', color: 'bg-slate-100 text-slate-700', icon: 'edit_note' },
@@ -135,7 +137,7 @@ const ApplicationDetailPage = () => {
         }
       } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load application.'));
-        navigate('/pp/applications', { replace: true });
+        navigate(ROUTES.PP_APPLICATIONS, { replace: true });
       } finally {
         if (isActive) {
           setIsLoading(false);
@@ -310,17 +312,14 @@ const ApplicationDetailPage = () => {
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white px-6 py-4 md:px-10">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-8">
-            <button className="flex items-center gap-4 text-primary" onClick={() => handleGuardedNavigation('/pp/dashboard')} type="button">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-white">
-                <span className="material-symbols-outlined">eco</span>
-              </div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
+            <button className="flex items-center gap-4 text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_DASHBOARD)} type="button">
+              <PariveshBrand theme="light" />
             </button>
             <nav className="hidden items-center gap-6 md:flex">
-              <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={() => handleGuardedNavigation('/pp/dashboard')} type="button">
+              <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_DASHBOARD)} type="button">
                 Dashboard
               </button>
-              <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={() => handleGuardedNavigation('/pp/applications')} type="button">
+              <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_APPLICATIONS)} type="button">
                 Applications
               </button>
             </nav>
@@ -352,7 +351,7 @@ const ApplicationDetailPage = () => {
                 </p>
               </div>
               <div className="flex flex-wrap gap-3">
-                <button className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-white px-4 py-2.5 text-sm font-semibold text-primary shadow-sm hover:bg-primary/5" onClick={() => handleGuardedNavigation(`/pp/workflow/${app.id}`)} type="button">
+                <button className="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-white px-4 py-2.5 text-sm font-semibold text-primary shadow-sm hover:bg-primary/5" onClick={() => handleGuardedNavigation(ROUTES.PP_WORKFLOW.replace(':appId?', app.id))} type="button">
                   <span className="material-symbols-outlined text-lg">timeline</span>
                   Preview Workflow
                 </button>
@@ -367,7 +366,7 @@ const ApplicationDetailPage = () => {
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex flex-col gap-2">
-            <button className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-primary" onClick={() => handleGuardedNavigation('/pp/applications')} type="button">
+            <button className="flex items-center gap-1 text-sm font-medium text-slate-500 hover:text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_APPLICATIONS)} type="button">
               <span className="material-symbols-outlined text-lg">arrow_back</span>
               Back to registry
             </button>
@@ -379,7 +378,7 @@ const ApplicationDetailPage = () => {
               <span className="material-symbols-outlined text-lg">{cfg.icon}</span>
               {cfg.label}
             </span>
-            <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-primary/20 hover:text-primary" onClick={() => handleGuardedNavigation(`/pp/workflow/${app.id}`)} type="button">
+            <button className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:border-primary/20 hover:text-primary" onClick={() => handleGuardedNavigation(ROUTES.PP_WORKFLOW.replace(':appId?', app.id))} type="button">
               <span className="material-symbols-outlined text-lg">monitoring</span>
               View Flow
             </button>
@@ -542,7 +541,7 @@ const ApplicationDetailPage = () => {
                     : 'Open the workflow view to see the current stage, timing, and next milestone.'}
                 </p>
               </div>
-              <button className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary-light" onClick={() => handleGuardedNavigation(`/pp/workflow/${app.id}`)} type="button">
+              <button className="mt-4 inline-flex items-center gap-2 text-sm font-bold text-primary hover:text-primary-light" onClick={() => handleGuardedNavigation(ROUTES.PP_WORKFLOW.replace(':appId?', app.id))} type="button">
                 Open workflow view
                 <span className="material-symbols-outlined text-lg">arrow_forward</span>
               </button>

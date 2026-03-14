@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import PariveshBrand from '../components/PariveshBrand';
 import { useAuth } from '../contexts/AuthContext';
+import { ROUTES } from '../constants/routes';
 
 const PremiumDarkSidebar = () => {
   const navigate = useNavigate();
@@ -8,21 +10,15 @@ const PremiumDarkSidebar = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login', { replace: true });
+    navigate(ROUTES.LOGIN, { replace: true });
   };
 
   return (
     <div className="flex h-screen overflow-hidden">
       <aside className="glass-sidebar flex h-full w-[260px] flex-col border-r border-accent/10 relative z-50 bg-sidebar-dark">
         <div className="flex flex-col gap-6 p-6">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-accent/20 transition-colors duration-200 group-hover:bg-accent/30 group-hover:shadow-glow-sm">
-              <span className="material-symbols-outlined text-xl text-accent">eco</span>
-            </div>
-            <div className="flex flex-col">
-              <h1 className="text-lg font-bold leading-tight tracking-tight text-white">PARIVESH 3.0</h1>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-accent/70">Environment Clearance</p>
-            </div>
+          <Link to={ROUTES.ROOT} className="flex items-center gap-3 group">
+            <PariveshBrand className="transition-all duration-200 group-hover:opacity-90" subtitle="Environment Clearance" theme="dark" />
           </Link>
 
           <div className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-3 py-3">
@@ -45,7 +41,7 @@ const PremiumDarkSidebar = () => {
             <div className="active-nav-indicator" />
             <Link
               className="flex items-center gap-3 rounded-lg bg-primary px-4 py-3 font-medium text-white shadow-glow-sm transition-all duration-200 hover:bg-primary-light"
-              to="/admin/sidebar"
+              to={ROUTES.ADMIN_DASHBOARD}
             >
               <span className="material-symbols-outlined fill-1">dashboard</span>
               <span className="text-sm">Dashboard</span>
@@ -54,7 +50,7 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/admin/dashboard"
+            to={ROUTES.ADMIN_DASHBOARD}
           >
             <span className="material-symbols-outlined text-accent">description</span>
             <span className="text-sm font-medium">Users</span>
@@ -63,7 +59,7 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/admin/sidebar"
+            to={ROUTES.ADMIN_DASHBOARD}
           >
             <span className="material-symbols-outlined text-accent">verified</span>
             <span className="text-sm font-medium">System View</span>
@@ -71,7 +67,7 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/admin/dashboard"
+            to={ROUTES.ADMIN_DASHBOARD}
           >
             <span className="material-symbols-outlined text-accent">gavel</span>
             <span className="text-sm font-medium">Compliance</span>
@@ -79,7 +75,7 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/admin/dashboard"
+            to={ROUTES.ADMIN_DASHBOARD}
           >
             <span className="material-symbols-outlined text-accent">bar_chart_4_bars</span>
             <span className="text-sm font-medium">Reports</span>
@@ -87,7 +83,7 @@ const PremiumDarkSidebar = () => {
 
           <Link
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-white/70 transition-all duration-200 hover:bg-white/5 hover:text-white"
-            to="/admin/dashboard"
+            to={ROUTES.ADMIN_DASHBOARD}
           >
             <span className="material-symbols-outlined text-accent">pie_chart</span>
             <span className="text-sm font-medium">Analytics</span>
@@ -96,7 +92,7 @@ const PremiumDarkSidebar = () => {
 
         <div className="mt-auto flex flex-col gap-1 border-t border-accent/10 p-4">
           <Link
-            to="/admin/dashboard"
+            to={ROUTES.ADMIN_DASHBOARD}
             className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white shadow-lg shadow-primary/20 transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary-light hover:shadow-glow-sm"
           >
             <span className="material-symbols-outlined text-[20px]">add_circle</span>

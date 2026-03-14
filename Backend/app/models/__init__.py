@@ -11,3 +11,5 @@ from app.models.gist import GistTemplate
 from app.models.mom_model import Gist
 from app.models.mom import MoM
 from app.models.audit import AuditLog
+from app.models.notification import Notification
+from app.models.compliance import ComplianceTask

@@ -13,6 +13,13 @@ import traceback as tb
 BASE = os.getenv("PARIVESH_API_BASE_URL", "http://localhost:8000/api/v1")
 ROOT_URL = BASE.removesuffix("/api/v1")
 RESULTS = {"passed": [], "failed": []}
+ADMIN_CREDENTIALS = [
+    ("admin@parivesh.demo", "Admin@123"),
+    ("admin@parivesh.gov.in", "admin123"),
+    ("admin@parivesh.com", "admin123"),
+    ("admin@admin.com", "admin123"),
+    ("admin@test.com", "admin123"),
+]
 
 def log_pass(test_name, detail=""):
     RESULTS["passed"].append(test_name)
@@ -101,8 +108,8 @@ async def main():
 
         # Try common admin credentials
         admin_token = None
-        for admin_email in ["admin@parivesh.com", "admin@admin.com", "admin@test.com"]:
-            r = await client.post(f"{BASE}/auth/login", json={"email": admin_email, "password": "admin123"})
+        for admin_email, admin_password in ADMIN_CREDENTIALS:
+            r = await client.post(f"{BASE}/auth/login", json={"email": admin_email, "password": admin_password})
             if r.status_code == 200:
                 admin_token = r.json()["access_token"]
                 log_pass(f"POST /auth/login (ADMIN)", f"({r.status_code}) email={admin_email}")
@@ -131,6 +138,8 @@ async def main():
         print("\n── 4. Admin Routes ──")
 
         sector_id = None
+        scrutiny_id = None
+        mom_id = None
         if admin_headers:
             # List users
             r = await client.get(f"{BASE}/admin/users", headers=admin_headers)
@@ -259,6 +268,8 @@ async def main():
                 r = await client.delete(f"{BASE}/admin/users/{scrutiny_id}/roles/PP", headers=admin_headers)
                 if r.status_code == 200:
                     log_pass("DELETE /admin/users/{id}/roles/PP", f"({r.status_code})")
+                elif r.status_code == 400 and "User does not have role PP" in r.text:
+                    log_pass("DELETE /admin/users/{id}/roles/PP", "(400) PP role already removed by single-role assignment")
                 else:
                     log_fail("DELETE /admin/users/{id}/roles/PP", f"({r.status_code}) {r.text[:200]}")
 
@@ -266,6 +277,8 @@ async def main():
                 r = await client.delete(f"{BASE}/admin/users/{mom_id}/roles/PP", headers=admin_headers)
                 if r.status_code == 200:
                     log_pass("DELETE /admin/users/{id}/roles/PP (MOM user)", f"({r.status_code})")
+                elif r.status_code == 400 and "User does not have role PP" in r.text:
+                    log_pass("DELETE /admin/users/{id}/roles/PP (MOM user)", "(400) PP role already removed by single-role assignment")
                 else:
                     log_fail("DELETE /admin/users/{id}/roles/PP (MOM user)", f"({r.status_code}) {r.text[:200]}")
 

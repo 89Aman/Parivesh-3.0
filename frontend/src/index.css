@@ -13,6 +13,27 @@
   --parivesh-text-muted: #6b7280;
 }
 
+/* ===== DARK MODE TOKENS ===== */
+[data-theme="dark"] {
+  --parivesh-bg: #0f1f0f;
+  --parivesh-text: #f0fdf4;
+  --parivesh-text-muted: #9ca3af;
+}
+
+.dark body {
+  background: linear-gradient(160deg, #0f1f0f 0%, #0a1a0a 30%, #111827 70%);
+  color: #f0fdf4;
+}
+
+.dark #root {
+  background: linear-gradient(160deg, #0f1f0f 0%, #0a1a0a 30%, #111827 70%);
+}
+
+.dark .glass-card {
+  background: rgba(15, 31, 15, 0.75);
+  border-color: rgba(16, 185, 129, 0.15);
+}
+
 /* ===== TYPOGRAPHY ===== */
 @layer base {
   body {
@@ -137,6 +158,11 @@ a[class*="bg-"]:active,
   transform: scale(0);
   animation: ripple-anim 0.5s ease-out forwards;
   pointer-events: none;
+}
+/* Typing dots bounce for AI assistant */
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.6; }
+  50%       { transform: translateY(-5px); opacity: 1; }
 }
 @keyframes ripple-anim {
   to {

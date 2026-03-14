@@ -5,6 +5,13 @@ import { useToast } from '../components/ToastProvider';
 import { Skeleton, SkeletonText } from '../components/Skeleton';
 import scrutinyService from '../services/scrutinyService';
 import { getApiErrorMessage } from '../services/api';
+import { getDefaultRouteForUser } from '../services/authService';
+import AIAssistantPanel from '../components/AIAssistantPanel';
+import PariveshBrand from '../components/PariveshBrand';
+import RiskBadge from '../components/RiskBadge';
+import NotificationBell from '../components/NotificationBell';
+import ThemeToggle from '../components/ThemeToggle';
+import { ROUTES } from '../constants/routes';
 
 const statusStyles = {
   SUBMITTED: 'bg-blue-100 text-blue-700',
@@ -48,7 +55,7 @@ const buildDraftSnapshot = (draftRemarks, draftAttachment) => ({
 const ScrutinyPortalApplicationReview = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  const { logout, hasRole } = useAuth();
+  const { logout, user } = useAuth();
   const fileInputRef = useRef(null);
 
   const [applications, setApplications] = useState([]);
@@ -76,13 +83,18 @@ const ScrutinyPortalApplicationReview = () => {
 
   const refreshQueue = async () => {
     const queue = await scrutinyService.getApplicationsForScrutiny();
-    setApplications(queue);
+    let nextSelectedAppId = selectedAppId;
+
     if (!selectedAppId && queue.length > 0) {
-      setSelectedAppId(queue[0].id);
+      nextSelectedAppId = queue[0].id;
     } else if (selectedAppId && !queue.some((item) => item.id === selectedAppId)) {
-      setSelectedAppId(queue[0]?.id || null);
+      nextSelectedAppId = queue[0]?.id || null;
     }
-    return queue;
+
+    setApplications(queue);
+    setSelectedAppId(nextSelectedAppId);
+
+    return { queue, nextSelectedAppId };
   };
 
   const loadSelectedApplication = useCallback(async (appId) => {
@@ -240,14 +252,6 @@ const ScrutinyPortalApplicationReview = () => {
     window.open('https://parivesh.nic.in/', '_blank', 'noopener,noreferrer');
   };
 
-  const handleOpenMeetings = () => {
-    if (hasRole('MOM')) {
-      navigate('/committee/mom-editor');
-      return;
-    }
-    toast.info('MoM meeting workspace is available for MOM role.');
-  };
-
   const handleLogout = async () => {
     if (
       hasUnsavedLocalDraft &&
@@ -257,7 +261,7 @@ const ScrutinyPortalApplicationReview = () => {
     }
 
     await logout();
-    navigate('/login', { replace: true });
+    navigate(ROUTES.LOGIN, { replace: true });
   };
 
   const handleGuardedNavigation = (targetPath) => {
@@ -270,6 +274,8 @@ const ScrutinyPortalApplicationReview = () => {
 
     navigate(targetPath);
   };
+
+  const defaultPortalRoute = getDefaultRouteForUser(user);
 
   const handleSelectApplication = (nextAppId) => {
     if (
@@ -398,8 +404,14 @@ const ScrutinyPortalApplicationReview = () => {
 
       await scrutinyService.referApplication(application.id, meetingId, remarks.trim() || null);
       toast.success('Application referred to meeting successfully.');
-      await refreshQueue();
-      await loadSelectedApplication(application.id);
+      const { nextSelectedAppId } = await refreshQueue();
+      await loadSelectedApplication(nextSelectedAppId);
+      navigate(ROUTES.COMMITTEE_MOM_EDITOR, {
+        state: {
+          fromScrutiny: true,
+          referredApplicationId: String(application.id),
+        },
+      });
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Unable to refer application.'));
     } finally {
@@ -425,8 +437,8 @@ const ScrutinyPortalApplicationReview = () => {
         },
       ]);
       toast.success('EDS raised successfully.');
-      await refreshQueue();
-      await loadSelectedApplication(application.id);
+      const { nextSelectedAppId } = await refreshQueue();
+      await loadSelectedApplication(nextSelectedAppId);
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Unable to raise EDS.'));
     } finally {
@@ -451,8 +463,8 @@ const ScrutinyPortalApplicationReview = () => {
         },
       ]);
       toast.success('Rejection note issued to proponent through EDS.');
-      await refreshQueue();
-      await loadSelectedApplication(application.id);
+      const { nextSelectedAppId } = await refreshQueue();
+      await loadSelectedApplication(nextSelectedAppId);
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Unable to process rejection.'));
     } finally {
@@ -504,25 +516,13 @@ const ScrutinyPortalApplicationReview = () => {
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
       <header className="flex items-center justify-between border-b border-primary/10 bg-white px-8 py-3">
         <div className="flex items-center gap-8">
-          <button className="flex items-center gap-4 text-primary" onClick={() => handleGuardedNavigation('/')} type="button">
-            <div className="flex size-8 items-center justify-center rounded bg-primary/10">
-              <span className="material-symbols-outlined text-primary">account_balance</span>
-            </div>
-            <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
+          <button className="flex items-center gap-4 text-primary" onClick={() => handleGuardedNavigation(defaultPortalRoute)} type="button">
+            <PariveshBrand theme="light" />
           </button>
-          <nav className="flex items-center gap-6">
-            <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={() => handleGuardedNavigation('/pp/dashboard')} type="button">
-              Dashboard
-            </button>
-            <button className="border-b-2 border-primary text-sm font-bold text-primary" onClick={() => handleGuardedNavigation('/committee/scrutiny')} type="button">
-              Scrutiny Queue
-            </button>
-            <button className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" onClick={handleOpenMeetings} type="button">
-              Meetings
-            </button>
-          </nav>
         </div>
         <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <NotificationBell />
           <button
             className="flex h-10 items-center justify-center rounded bg-red-50 px-3 text-red-600 hover:bg-red-100"
             onClick={handleLogout}
@@ -619,31 +619,39 @@ const ScrutinyPortalApplicationReview = () => {
 
           <section className="rounded-xl border border-primary/10 bg-white p-5">
             <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-slate-500">Project Details</h3>
-            <div className="space-y-3 text-sm">
-              <div>
-                <p className="text-[11px] uppercase text-slate-400">Category</p>
-                <p className="font-semibold text-slate-800">{application?.category || 'N/A'}</p>
+            {isDetailsLoading && !application ? (
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-14 w-full" />
               </div>
-              <div>
-                <p className="text-[11px] uppercase text-slate-400">Capacity</p>
-                <p className="font-semibold text-slate-800">{application?.capacity || 'N/A'}</p>
+            ) : (
+              <div className="space-y-3 text-sm">
+                <div>
+                  <p className="text-[11px] uppercase text-slate-400">Category</p>
+                  <p className="font-semibold text-slate-800">{application?.category || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase text-slate-400">Capacity</p>
+                  <p className="font-semibold text-slate-800">{application?.capacity || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase text-slate-400">Location</p>
+                  <p className="font-semibold text-slate-800">
+                    {[application?.village, application?.district, application?.state].filter(Boolean).join(', ') ||
+                      'N/A'}
+                  </p>
+                  <button
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                    onClick={handleOpenMap}
+                    type="button"
+                  >
+                    <span className="material-symbols-outlined text-sm">map</span>
+                    Open Map
+                  </button>
+                </div>
               </div>
-              <div>
-                <p className="text-[11px] uppercase text-slate-400">Location</p>
-                <p className="font-semibold text-slate-800">
-                  {[application?.village, application?.district, application?.state].filter(Boolean).join(', ') ||
-                    'N/A'}
-                </p>
-                <button
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-                  onClick={handleOpenMap}
-                  type="button"
-                >
-                  <span className="material-symbols-outlined text-sm">map</span>
-                  Open Map
-                </button>
-              </div>
-            </div>
+            )}
           </section>
         </aside>
 
@@ -675,6 +683,9 @@ const ScrutinyPortalApplicationReview = () => {
               >
                 {formatStatus(application?.status)}
               </span>
+              {application?.risk_level && (
+                <RiskBadge score={application.risk_score} level={application.risk_level} />
+              )}
               <span className="text-xs text-slate-500">Created: {formatDate(application?.created_at)}</span>
             </div>
           </div>
@@ -759,6 +770,10 @@ const ScrutinyPortalApplicationReview = () => {
         </section>
 
         <aside className="col-span-3 space-y-6">
+          {selectedAppId && (
+            <AIAssistantPanel appId={selectedAppId} />
+          )}
+
           <div className="rounded-xl border-2 border-primary/10 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>

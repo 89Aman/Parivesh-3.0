@@ -7,8 +7,21 @@ import {
   setAuthToken,
   setStoredUser,
 } from './session';
+import { ROUTE_PREFIX, ROUTES } from '../constants/routes';
 
-const getRoleNames = (user) => (user?.roles || []).map((role) => role.name);
+const normalizeRoleName = (role) => {
+  if (!role) return null;
+  if (typeof role === 'string') return role;
+  if (typeof role?.name === 'string') return role.name;
+  if (typeof role?.name?.value === 'string') return role.name.value;
+  return null;
+};
+
+const getRoleNames = (user) => {
+  return (user?.roles || [])
+    .map((role) => normalizeRoleName(role))
+    .filter(Boolean);
+};
 const RATE_LIMIT_ERROR_CODE = 'PARIVESH_AUTH_RATE_LIMITED';
 const DEFAULT_LOGIN_COOLDOWN_SECONDS = 60;
 
@@ -81,19 +94,19 @@ export const canAccessPathForUser = (user, path) => {
   if (!path) return false;
   const roles = getRoleNames(user);
 
-  if (path.startsWith('/admin')) {
+  if (path.startsWith(ROUTE_PREFIX.ADMIN)) {
     return roles.includes('ADMIN');
   }
 
-  if (path.startsWith('/pp')) {
+  if (path.startsWith(ROUTE_PREFIX.PP)) {
     return roles.includes('PP') || roles.includes('RQP');
   }
 
-  if (path.startsWith('/committee/scrutiny')) {
+  if (path.startsWith(ROUTE_PREFIX.COMMITTEE_SCRUTINY)) {
     return roles.includes('SCRUTINY');
   }
 
-  if (path.startsWith('/committee/mom-editor')) {
+  if (path.startsWith(ROUTE_PREFIX.COMMITTEE_MOM)) {
     return roles.includes('MOM');
   }
 
@@ -104,18 +117,18 @@ export const getDefaultRouteForUser = (user) => {
   const roles = getRoleNames(user);
 
   if (roles.includes('ADMIN')) {
-    return '/admin/dashboard';
+    return ROUTES.ADMIN_DASHBOARD;
   }
 
   if (roles.includes('SCRUTINY')) {
-    return '/committee/scrutiny';
+    return ROUTES.COMMITTEE_SCRUTINY;
   }
 
   if (roles.includes('MOM')) {
-    return '/committee/mom-editor';
+    return ROUTES.COMMITTEE_MOM_EDITOR;
   }
 
-  return '/pp/dashboard';
+  return ROUTES.PP_DASHBOARD;
 };
 
 export const getSafeRouteForUser = (user, requestedPath) => {
@@ -186,16 +199,22 @@ const authService = {
     loginCooldownUntil = 0;
 
     const token = response.data.access_token;
-    const user = response.data.user || null;
+    const loginUser = response.data.user || null;
     setAuthToken(token);
 
-    if (user) {
-      setStoredUser(user);
-      return { token, user };
+    try {
+      const hydratedUser = await hydrateCurrentUser();
+      if (hydratedUser) {
+        return { token, user: hydratedUser };
+      }
+    } catch {
+      // Fall back to login payload if hydration endpoint is temporarily unavailable.
     }
 
-    const hydratedUser = await hydrateCurrentUser();
-    return { token, user: hydratedUser };
+    if (loginUser) {
+      setStoredUser(loginUser);
+    }
+    return { token, user: loginUser };
   },
 
 
@@ -252,7 +271,6 @@ const authService = {
 
     // Keep logout UX stable even when upstream sign-out fails.
     if (signOutError) {
-      // eslint-disable-next-line no-console
       console.warn('Sign-out completed locally but remote sign-out failed.', signOutError);
     }
   },

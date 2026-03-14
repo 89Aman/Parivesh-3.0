@@ -61,3 +61,10 @@ The application lifecycle follows a strict linear progression enforced by the ba
 - **JWT Authentication**: Secure token-based API access.
 - **Strict Endpoint Fencing**: FastAPI dependencies (`@require_role`) ensure users can only ever trigger actions designated to their specific role (e.g., MoM cannot skip ahead and verify payments).
 - **Row-Level Data Isolation**: Repository layers ensure proponents (PP) can only view and mutate their own applications.
+
+
+Role	Email Address	Password
+Administrator	admin@parivesh.gov.in	Admin@123
+Project Proponent (PP)	pp@parivesh.gov.in	PP@123
+Scrutiny Officer	scrutiny@parivesh.gov.in	Scrutiny@123
+Minutes of Meeting (MoM)	mom@parivesh.gov.in	Mom@123

@@ -13,7 +13,9 @@ from app.schemas.mom import MoMCreate, MoMUpdate, MoMOut
 from app.services.application_service import ApplicationService
 from app.services.gist_service import GistService
 from app.services.mom_service import MoMService
+from app.services.meeting_service import MeetingService
 from app.services.naas_service import NaaSService
+from app.schemas.meeting import MeetingOut
 
 router = APIRouter(prefix="/mom", tags=["MoM"])
 
@@ -36,6 +38,38 @@ async def list_applications(
             ApplicationStatus.FINALIZED,
         ]
     return await ApplicationService.list_by_statuses(db, statuses)
+
+
+@router.get("/meetings", response_model=list[MeetingOut])
+async def list_meetings(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("MOM")),
+):
+    return await MeetingService.list_meetings(db)
+
+
+@router.post("/applications/{app_id}/gist/generate", response_model=GistOut)
+async def generate_gist_for_mom(
+    app_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("MOM")),
+):
+    gist = await GistService.generate_gist(db, app_id, current_user.id, actor_role="MOM")
+    await db.commit()
+    return gist
+
+
+@router.get("/applications/{app_id}/gist", response_model=GistOut)
+async def get_gist_for_application(
+    app_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("MOM")),
+):
+    gist = await GistService.get_for_application(db, app_id)
+    if not gist:
+        from app.core.exceptions import NotFoundException
+        raise NotFoundException("Gist")
+    return gist
 
 
 # ──── Gist (view / edit) ────

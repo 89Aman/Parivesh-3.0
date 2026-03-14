@@ -25,7 +25,14 @@ class SectorParameter(Base):
     sector_id = Column(Integer, ForeignKey("sectors.id", ondelete="CASCADE"), nullable=False)
     name = Column(String, nullable=False)
     key = Column(String, nullable=False)
-    type = Column(Enum(ParameterTypeEnum), nullable=False)
+    type = Column(
+        Enum(
+            ParameterTypeEnum,
+            name="parameter_type",
+            create_type=False,
+        ),
+        nullable=False,
+    )
     is_required = Column(Boolean, default=False, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
 

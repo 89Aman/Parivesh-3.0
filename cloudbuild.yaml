@@ -1,6 +1,4 @@
 steps:
-  # Step 1: Build frontend — runs npm in Cloud Build's managed environment,
-  # isolated from Docker, so network retries are handled by Node/npm natively.
   - name: 'node:22-alpine'
     id: 'build-frontend'
     dir: 'frontend'
@@ -15,8 +13,7 @@ steps:
         npm ci
         VITE_API_BASE_URL=/api/v1 npm run build
 
-  # Step 2: Build and tag the Docker image.
-  # Uses Dockerfile.cloudrun which copies the pre-built dist from step 1.
+
   - name: 'gcr.io/cloud-builders/docker'
     id: 'build-image'
     args:
@@ -29,7 +26,7 @@ steps:
       - 'gcr.io/$PROJECT_ID/parivesh:latest'
       - .
 
-  # Step 3: Deploy to Cloud Run.
+
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: 'deploy'
     entrypoint: gcloud
