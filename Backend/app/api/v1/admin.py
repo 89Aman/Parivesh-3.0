@@ -5,13 +5,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.db import get_db
 from app.core.rbac import require_role
 from app.models.user import User
-from app.schemas.user import UserOut, AssignRoleRequest
+from app.schemas.user import UserOut, UserCreate, AdminUserUpdate, AssignRoleRequest
 from app.schemas.sector import SectorCreate, SectorOut, SectorParameterCreate, SectorParameterUpdate, SectorParameterOut
 from app.schemas.gist import GistTemplateCreate, GistTemplateUpdate, GistTemplateOut
+from app.schemas.application import ApplicationOut
 from app.services.user_service import UserService
 from app.services.template_service import TemplateService
+from app.services.application_service import ApplicationService
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
+
+
+@router.get("/applications", response_model=list[ApplicationOut])
+async def list_all_applications(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    return await ApplicationService.list_all(db)
 
 
 # ──────────────────────────────────────────
@@ -27,6 +37,32 @@ async def list_users(
     return await UserService.list_users(db)
 
 
+@router.post("/users", response_model=UserOut)
+async def create_user(
+    data: UserCreate,
+    role_name: Optional[str] = Query("PP", description="Role to assign: ADMIN, PP, RQP, SCRUTINY, MOM"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    """Admin-only endpoint to create a new user with any role."""
+    user = await UserService.create_pp_user(
+        db,
+        email=data.email,
+        password=data.password,
+        full_name=data.full_name,
+        organization=data.organization,
+        phone=data.phone,
+    )
+    await db.flush()
+
+    # Enforce exactly one role per user to avoid duplicate portal access.
+    if role_name:
+        user = await UserService.set_single_role(db, user.id, role_name, actor_id=current_user.id)
+
+    await db.commit()
+    return user
+
+
 @router.post("/users/{user_id}/roles", response_model=UserOut)
 async def assign_role(
     user_id: str,
@@ -34,7 +70,27 @@ async def assign_role(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("ADMIN")),
 ):
-    user = await UserService.assign_role(db, user_id, data.role_name, actor_id=current_user.id)
+    user = await UserService.set_single_role(db, user_id, data.role_name, actor_id=current_user.id)
+    await db.commit()
+    return user
+
+
+@router.put("/users/{user_id}", response_model=UserOut)
+async def update_user(
+    user_id: str,
+    data: AdminUserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    user = await UserService.update_user(
+        db,
+        user_id,
+        full_name=data.full_name,
+        organization=data.organization,
+        phone=data.phone,
+        role_name=data.role_name,
+        actor_id=current_user.id,
+    )
     await db.commit()
     return user
 
@@ -154,3 +210,15 @@ async def update_gist_template(
     )
     await db.commit()
     return template
+
+
+@router.delete("/users/{user_id}", status_code=204)
+async def delete_user(
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("ADMIN")),
+):
+    """Admin-only endpoint to delete a user."""
+    await UserService.delete_user(db, user_id, actor_id=current_user.id)
+    await db.commit()
+    return None

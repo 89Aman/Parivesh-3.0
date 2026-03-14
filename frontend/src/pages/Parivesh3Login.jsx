@@ -5,6 +5,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { getDefaultRouteForUser } from '../services/authService';
 import { getApiErrorMessage } from '../services/api';
 
+const getPortalPrefix = (path) => {
+  if (path?.startsWith('/admin')) return '/admin';
+  if (path?.startsWith('/pp')) return '/pp';
+  if (path?.startsWith('/committee/scrutiny')) return '/committee/scrutiny';
+  if (path?.startsWith('/committee/mom-editor')) return '/committee/mom-editor';
+  return '/';
+};
+
 const portalCards = [
   {
     title: 'Admin',
@@ -41,7 +49,8 @@ const Parivesh3Login = () => {
   useEffect(() => {
     if (!isLoading && isAuthenticated && user) {
       const from = location.state?.from?.pathname;
-      const destination = from || getDefaultRouteForUser(user);
+      const fallback = getDefaultRouteForUser(user);
+      const destination = getPortalPrefix(from) === getPortalPrefix(fallback) ? from : fallback;
       navigate(destination, { replace: true });
     }
   }, [isLoading, isAuthenticated, user, navigate, location.state]);
@@ -57,7 +66,9 @@ const Parivesh3Login = () => {
       const { user: loggedInUser } = await login(email, password);
       toast.success('Signed in successfully.');
       const from = location.state?.from?.pathname;
-      navigate(from || getDefaultRouteForUser(loggedInUser), { replace: true });
+      const fallback = getDefaultRouteForUser(loggedInUser);
+      const destination = getPortalPrefix(from) === getPortalPrefix(fallback) ? from : fallback;
+      navigate(destination, { replace: true });
     } catch (error) {
       toast.error(getApiErrorMessage(error, 'Unable to sign in.'));
     } finally {
@@ -77,7 +88,7 @@ const Parivesh3Login = () => {
         <div className="absolute inset-0 z-0">
           <img
             alt=""
-            aria-hidden
+            aria-hidden="true"
             className="h-full w-full scale-105 object-cover opacity-25"
             src="/hero-bg.png"
           />
@@ -90,19 +101,13 @@ const Parivesh3Login = () => {
         </div>
 
         <div className="relative z-20 flex max-w-2xl flex-col gap-8">
-          <div
-            className="flex items-center gap-4 animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)_forwards] opacity-0"
-            style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}
-          >
+          <div className="flex items-center gap-4 animate-slide-up">
             <span className="material-symbols-outlined text-5xl text-accent drop-shadow-sm lg:text-6xl">eco</span>
             <h1 className="text-5xl font-black tracking-tighter text-white drop-shadow-sm lg:text-7xl">
               PARIVESH 3.0
             </h1>
           </div>
-          <p
-            className="max-w-lg text-lg font-light leading-relaxed text-white/90 lg:text-xl animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)_forwards] opacity-0"
-            style={{ animationDelay: '0.2s', animationFillMode: 'forwards' }}
-          >
+          <p className="max-w-lg text-lg font-light leading-relaxed text-white/90 lg:text-xl animate-slide-up" style={{ animationDelay: '0.08s' }}>
             Unified environmental clearance workflow across proponent, scrutiny, and MoM portals.
           </p>
 
@@ -110,8 +115,8 @@ const Parivesh3Login = () => {
             {portalCards.map((card, i) => (
               <div
                 key={card.title}
-                className="group rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-md transition-all duration-200 hover:scale-[1.02] hover:border-white/25 hover:bg-white/15 hover:shadow-[0_8px_32px_-8px_rgba(16,185,129,0.25)] animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)_forwards] opacity-0"
-                style={{ animationDelay: `${0.3 + i * 0.08}s`, animationFillMode: 'forwards' }}
+                className="group rounded-xl border border-white/15 bg-white/10 p-4 backdrop-blur-md transition-all duration-200 hover:scale-[1.02] hover:border-white/25 hover:bg-white/15 hover:shadow-[0_8px_32px_-8px_rgba(16,185,129,0.25)] animate-slide-up"
+                style={{ animationDelay: `${0.15 + i * 0.06}s` }}
               >
                 <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-accent/20 transition-colors duration-200 group-hover:bg-accent/30">
                   <span className="material-symbols-outlined text-accent">{card.icon}</span>
@@ -123,10 +128,7 @@ const Parivesh3Login = () => {
           </div>
         </div>
 
-        <div
-          className="relative z-20 mt-10 flex items-center gap-4 border-t border-white/10 pt-6 animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)_forwards] opacity-0"
-          style={{ animationDelay: '0.7s', animationFillMode: 'forwards' }}
-        >
+        <div className="relative z-20 mt-10 flex items-center gap-4 border-t border-white/10 pt-6 animate-slide-up" style={{ animationDelay: '0.5s' }}>
           <div className="flex size-9 items-center justify-center rounded-lg bg-accent/20">
             <span className="material-symbols-outlined text-lg text-accent">account_balance</span>
           </div>
@@ -136,12 +138,9 @@ const Parivesh3Login = () => {
         </div>
       </section>
 
-      {/* Right: Sign-in card — glassmorphism, subtle gradient bg */}
+      {/* Right: Sign-in card */}
       <section className="flex w-full items-center justify-center bg-background-light p-6 lg:w-[42%] lg:p-12">
-        <div
-          className="flex w-full max-w-md flex-col gap-8 animate-[slideUp_0.5s_cubic-bezier(0.16,1,0.3,1)_forwards] opacity-0"
-          style={{ animationDelay: '0.15s', animationFillMode: 'forwards' }}
-        >
+        <div className="flex w-full max-w-md flex-col gap-8 animate-fade-in">
           <div className="rounded-xl border border-primary/10 bg-white/80 p-8 shadow-glass backdrop-blur-xl">
             <div className="mb-8 flex flex-col gap-2">
               <h2 className="text-2xl font-bold tracking-tight text-text-primary lg:text-3xl">
@@ -211,7 +210,7 @@ const Parivesh3Login = () => {
             <div className="mt-6 rounded-lg border border-primary/10 bg-primary/5 p-4 text-sm text-text-secondary">
               <p className="font-semibold text-text-primary">Session behaviour</p>
               <p className="mt-1 leading-relaxed">
-                Authentication is managed by the Parivesh backend and stored in the local PostgreSQL database. Your portal access depends on your assigned role.
+                Sign-in is handled through Supabase Auth. Portal access still depends on your roles in Parivesh.
               </p>
             </div>
           </div>

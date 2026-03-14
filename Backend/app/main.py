@@ -1,6 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import ResponseValidationError
+import traceback
 from app.core.config import settings
 from app.api.v1 import auth, admin, pp, scrutiny, mom, metadata
 
@@ -10,6 +12,24 @@ app = FastAPI(
     version="1.0.0",
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
 )
+
+@app.exception_handler(ResponseValidationError)
+async def validation_exception_handler(request: Request, exc: ResponseValidationError):
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Response Validation Error", "errors": exc.errors()},
+    )
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    err = traceback.format_exc()
+    print(err)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal Server Error", "traceback": err},
+    )
+
 
 # CORS
 app.add_middleware(

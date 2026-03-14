@@ -1,10 +1,9 @@
 from datetime import datetime, timedelta
-from typing import Any, Union, Optional
+from typing import Any, Union
 from jose import jwt
-from passlib.context import CryptContext
+import bcrypt
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 def create_access_token(
     subject: Union[str, Any], roles: list[str], expires_delta: timedelta = None
@@ -19,8 +18,34 @@ def create_access_token(
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
     return encoded_jwt
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(
+        plain_password.encode("utf-8"),
+        hashed_password.encode("utf-8"),
+    )
+
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt(),
+    ).decode("utf-8")
+
+
+def verify_google_id_token(token: str) -> dict | None:
+    from google.oauth2 import id_token
+    from google.auth.transport import requests
+
+    try:
+        # Specify the CLIENT_ID of the app that accesses the backend:
+        idinfo = id_token.verify_oauth2_token(
+            token, requests.Request(), settings.GOOGLE_CLIENT_ID
+        )
+
+        # ID token is valid. Get the user's Google Account ID from the 'sub' field.
+        # userid = idinfo['sub']
+        return idinfo
+    except ValueError:
+        # Invalid token
+        return None

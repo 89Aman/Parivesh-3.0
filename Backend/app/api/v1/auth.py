@@ -6,14 +6,14 @@ from app.core.db import get_db
 from app.core.security import create_access_token
 from app.models.user import User
 from app.schemas.auth import LoginRequest, RegisterPPRequest, Token
-from app.schemas.user import UserOut
+from app.schemas.user import UserOut as UserSchema
 from app.services.user_service import UserService
 from app.core.exceptions import BadRequestException
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@router.get("/me", response_model=UserOut)
+@router.get("/me", response_model=UserSchema)
 async def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
@@ -28,7 +28,7 @@ async def login(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     return Token(access_token=access_token)
 
 
-@router.post("/register-pp", response_model=UserOut)
+@router.post("/register-pp", response_model=UserSchema)
 async def register_pp(data: RegisterPPRequest, db: AsyncSession = Depends(get_db)):
     user = await UserService.create_pp_user(
         db,

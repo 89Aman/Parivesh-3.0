@@ -1,10 +1,11 @@
 import enum
 from sqlalchemy import Column, String, Boolean, DateTime, func, Enum, ForeignKey, Integer
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Uuid as UUID
 import uuid
 
 from app.core.db import Base
+
 
 class UserRoleEnum(str, enum.Enum):
     ADMIN = "ADMIN"
@@ -13,16 +14,33 @@ class UserRoleEnum(str, enum.Enum):
     SCRUTINY = "SCRUTINY"
     MOM = "MOM"
 
+
+# Human-readable labels for roles
+ROLE_LABELS = {
+    "ADMIN": "Administrator",
+    "PP": "Project Proponent",
+    "RQP": "Registered Qualified Person",
+    "SCRUTINY": "Scrutiny Officer",
+    "MOM": "Minutes of Meeting",
+}
+
+
 class UserRole(Base):
     __tablename__ = "user_roles"
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     role_id = Column(Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True)
 
+
 class Role(Base):
     __tablename__ = "roles"
     id = Column(Integer, primary_key=True, index=True)
     name = Column(Enum(UserRoleEnum), unique=True, nullable=False)
-    label = Column(String, nullable=False)
+    label = Column(String, nullable=True, default="")
+
+    @property
+    def display_label(self):
+        return self.label or ROLE_LABELS.get(self.name.value if hasattr(self.name, 'value') else self.name, str(self.name))
+
 
 class User(Base):
     __tablename__ = "users"
@@ -36,4 +54,4 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
-    roles = relationship("Role", secondary="user_roles")
+    roles = relationship("Role", secondary="user_roles", lazy="selectin")

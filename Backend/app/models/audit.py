@@ -1,6 +1,6 @@
-from sqlalchemy import Column, String, DateTime, func, ForeignKey, BigInteger, Text
+from sqlalchemy import Column, String, DateTime, func, ForeignKey, Integer, Text
+from sqlalchemy import Uuid as UUID
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, INET
 
 from app.core.db import Base
 
@@ -8,7 +8,7 @@ from app.core.db import Base
 class AuditLog(Base):
     __tablename__ = "audit_logs"
 
-    id = Column(BigInteger, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)
     actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     actor_role = Column(String, nullable=True)
     action = Column(String, nullable=False)

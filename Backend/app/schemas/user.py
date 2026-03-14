@@ -21,10 +21,14 @@ class UserUpdate(BaseModel):
     phone: Optional[str] = None
 
 
+class AdminUserUpdate(UserUpdate):
+    role_name: Optional[str] = None
+
+
 class RoleOut(BaseModel):
     id: int
     name: str
-    label: str
+    label: Optional[str] = ""
 
     class Config:
         from_attributes = True

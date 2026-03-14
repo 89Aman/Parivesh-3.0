@@ -1,7 +1,8 @@
 import api from './api';
-import { supabase } from '../supabase';
+import { isSupabaseConfigured, supabase } from '../supabase';
 import {
   clearSession,
+  getAuthToken,
   getStoredUser,
   setAuthToken,
   setStoredUser,
@@ -27,108 +28,129 @@ export const getDefaultRouteForUser = (user) => {
   return '/pp/dashboard';
 };
 
-const syncTokenFromSupabase = async () => {
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-
-  if (error) {
-    throw error;
-  }
-
-  setAuthToken(session?.access_token || null);
-  return session;
-};
+let hydrateUserPromise = null;
 
 const hydrateCurrentUser = async () => {
-  const session = await syncTokenFromSupabase();
-  if (!session?.access_token) {
-    clearSession();
-    return null;
+  if (hydrateUserPromise) {
+    return hydrateUserPromise;
   }
 
-  const response = await api.get('/auth/me');
-  setStoredUser(response.data);
-  return response.data;
+  hydrateUserPromise = api
+    .get('/auth/me')
+    .then((response) => {
+      setStoredUser(response.data);
+      return response.data;
+    })
+    .catch((error) => {
+      clearSession();
+      throw error;
+    })
+    .finally(() => {
+      hydrateUserPromise = null;
+    });
+
+  return hydrateUserPromise;
 };
 
 const authService = {
   login: async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        throw error;
+      }
 
-    if (error) {
-      console.error('Supabase login error:', error);
-      throw error;
+      const token = data?.session?.access_token;
+      if (!token) {
+        throw new Error('Supabase session could not be established.');
+      }
+
+      setAuthToken(token);
+      const user = await hydrateCurrentUser();
+      return { token, user };
     }
 
-    setAuthToken(data.session?.access_token || null);
+    const response = await api.post('/auth/login', { email, password });
+    const token = response.data.access_token;
+    setAuthToken(token);
+
     const user = await hydrateCurrentUser();
-    return { session: data.session, user };
+    return { token, user };
   },
 
-  loginWithGoogle: async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/login`,
-      },
-    });
-
-    if (error) {
-      console.error('Supabase Google login error:', error);
-      throw error;
-    }
-
-    return data;
-  },
 
   registerPP: async ({ email, password, full_name, organization, phone }) => {
-    const { data, error } = await supabase.auth.signUp({
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: full_name || 'Project Proponent',
+            organization: organization || null,
+            phone: phone || null,
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      const token = data?.session?.access_token || null;
+      if (!token) {
+        return { user: null, requiresEmailVerification: true };
+      }
+
+      setAuthToken(token);
+      const user = await hydrateCurrentUser();
+      return { token, user, requiresEmailVerification: false };
+    }
+
+    await api.post('/auth/register-pp', {
       email,
       password,
-      options: {
-        data: {
-          full_name,
-          organization,
-          phone,
-        },
-      },
+      full_name: full_name || 'Project Proponent',
+      organization,
+      phone,
     });
 
-    if (error) {
-      console.error('Supabase registration error:', error);
-      throw error;
-    }
-
-    if (data.session?.access_token) {
-      setAuthToken(data.session.access_token);
-      const user = await hydrateCurrentUser();
-      return { session: data.session, user };
-    }
-
-    return data;
+    return authService.login(email, password);
   },
 
   logout: async () => {
-    await supabase.auth.signOut();
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut();
+    }
     clearSession();
   },
 
   getCurrentUser: async () => {
-    try {
-      return await hydrateCurrentUser();
-    } catch (error) {
-      console.error('Error fetching current user:', error);
-      throw error;
-    }
+    return hydrateCurrentUser();
   },
 
   restoreSession: async () => {
     try {
+      if (isSupabaseConfigured && supabase) {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          clearSession();
+          return null;
+        }
+
+        setAuthToken(session.access_token);
+        return await hydrateCurrentUser();
+      }
+
+      const storedUser = getStoredUser();
+      const token = getAuthToken();
+      if (!storedUser || !token) {
+        return null;
+      }
+
       return await hydrateCurrentUser();
     } catch {
       clearSession();

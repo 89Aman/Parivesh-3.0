@@ -5,7 +5,7 @@ from sqlalchemy import (
     Integer, Numeric, Text
 )
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Uuid as UUID
 
 from app.core.db import Base
 

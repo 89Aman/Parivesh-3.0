@@ -53,6 +53,13 @@ class ApplicationService:
         return app
 
     @staticmethod
+    async def list_all(db: AsyncSession) -> list[Application]:
+        result = await db.execute(
+            select(Application).order_by(Application.created_at.desc())
+        )
+        return list(result.scalars().all())
+
+    @staticmethod
     async def list_by_owner(db: AsyncSession, owner_id: UUID) -> list[Application]:
         result = await db.execute(
             select(Application).filter(Application.applicant_id == owner_id)

@@ -11,6 +11,7 @@ Valid transitions:
  MOM_GENERATED  → FINALIZED         (MoM finalizes)
 """
 
+import uuid as _uuid
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -69,12 +70,24 @@ async def transition_status(
             detail=f"Role '{actor_role}' cannot perform transition {current.value} → {target_status.value}.",
         )
 
+    # Ensure IDs are proper UUID objects for UUID columns to avoid comparison errors in SQLite
+    def to_uuid(val):
+        if val is None: return None
+        if isinstance(val, _uuid.UUID): return val
+        try:
+            return _uuid.UUID(str(val))
+        except (ValueError, TypeError):
+            return val
+
+    app_uuid = to_uuid(application.id)
+    actor_uuid = to_uuid(actor_id)
+
     # Record history
     history = ApplicationStatusHistory(
-        application_id=application.id,
+        application_id=app_uuid,
         from_status=current.value,
         to_status=target_status.value,
-        changed_by_user_id=actor_id,
+        changed_by_user_id=actor_uuid,
         changed_by_role=actor_role,
         reason=reason,
     )
@@ -82,10 +95,10 @@ async def transition_status(
 
     # Audit log
     audit = AuditLog(
-        actor_id=actor_id,
+        actor_id=actor_uuid,
         actor_role=actor_role,
         action="STATUS_CHANGE",
-        description=f"{current.value} → {target_status.value}",
+        description=f"{current.value} -> {target_status.value}",
         entity_type="APPLICATION",
         entity_id=str(application.id),
     )

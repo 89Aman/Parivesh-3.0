@@ -17,8 +17,13 @@ class Settings(BaseSettings):
     SUPABASE_URL: str | None = None
     SUPABASE_ANON_KEY: str | None = None
 
+    # Google (used by agent / AI features)
+    GOOGLE_API_KEY: str | None = None
+    GOOGLE_CLIENT_ID: str | None = None
+
     class Config:
         case_sensitive = True
+        extra = "ignore"
         env_file = str(Path(__file__).resolve().parent.parent.parent / ".env")
         env_file_encoding = "utf-8"
 

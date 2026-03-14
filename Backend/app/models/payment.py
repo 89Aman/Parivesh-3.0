@@ -4,7 +4,7 @@ from sqlalchemy import (
     Numeric, Text, Enum
 )
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Uuid as UUID, JSON as JSONB
 
 from app.core.db import Base
 

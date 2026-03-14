@@ -11,6 +11,49 @@ const adminService = {
     }
   },
 
+  getApplications: async () => {
+    try {
+      const response = await api.get('/admin/applications');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all applications:', error);
+      throw error;
+    }
+  },
+
+  createUser: async ({ email, password, full_name, organization, phone, role_name }) => {
+    try {
+      const response = await api.post('/admin/users', {
+        email,
+        password,
+        full_name,
+        organization,
+        phone,
+      }, {
+        params: { role_name: role_name || 'PP' },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating user:', error);
+      throw error;
+    }
+  },
+
+  updateUser: async (userId, { full_name, organization, phone, role_name }) => {
+    try {
+      const response = await api.put(`/admin/users/${userId}`, {
+        full_name,
+        organization,
+        phone,
+        role_name,
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Error updating user ${userId}:`, error);
+      throw error;
+    }
+  },
+
   assignRole: async (userId, roleName) => {
     try {
       const response = await api.post(`/admin/users/${userId}/roles`, { role_name: roleName });
@@ -27,6 +70,16 @@ const adminService = {
       return response.data;
     } catch (error) {
       console.error(`Error removing role from user ${userId}:`, error);
+      throw error;
+    }
+  },
+
+  deleteUser: async (userId) => {
+    try {
+      const response = await api.delete(`/admin/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error deleting user ${userId}:`, error);
       throw error;
     }
   },

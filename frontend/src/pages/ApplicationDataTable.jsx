@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../components/ToastProvider';
 import applicationService from '../services/applicationService';
-import authService from '../services/authService';
+import adminService from '../services/adminService';
 import { getApiErrorMessage } from '../services/api';
 import metadataService from '../services/metadataService';
 
@@ -28,62 +29,71 @@ const formatDate = (value) =>
 const ApplicationDataTable = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [applications, setApplications] = useState([]);
   const [sectors, setSectors] = useState({});
   const [isLoading, setIsLoading] = useState(true);
+
+  const isAdmin = useMemo(() => user?.roles?.some(r => r.name === 'ADMIN'), [user]);
 
   useEffect(() => {
     let isActive = true;
 
     const loadData = async () => {
       try {
+        const fetchApps = isAdmin ? adminService.getApplications : applicationService.getApplications;
         const [apps, sectorList] = await Promise.all([
-          applicationService.getApplications(),
+          fetchApps(),
           metadataService.getSectors(),
         ]);
 
-        if (!isActive) {
-          return;
-        }
+        if (!isActive) return;
 
         setApplications(apps);
         setSectors(Object.fromEntries(sectorList.map((sector) => [sector.id, sector.name])));
       } catch (error) {
         toast.error(getApiErrorMessage(error, 'Unable to load application registry.'));
-        await authService.logout();
-        navigate('/login', { replace: true });
       } finally {
-        if (isActive) {
-          setIsLoading(false);
-        }
+        if (isActive) setIsLoading(false);
       }
     };
 
     loadData();
-
-    return () => {
-      isActive = false;
-    };
-  }, [navigate, toast]);
+    return () => { isActive = false; };
+  }, [navigate, toast, isAdmin]);
 
   const filteredApplications = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
+    let result = applications;
 
-    if (!query) {
-      return applications;
+    if (statusFilter !== 'ALL') {
+      result = result.filter((app) => app.status === statusFilter);
     }
 
-    return applications.filter((application) => {
-      const sectorName = sectors[application.sector_id] || '';
-      return (
-        application.id.toLowerCase().includes(query) ||
-        application.project_name.toLowerCase().includes(query) ||
-        application.status.toLowerCase().includes(query) ||
-        sectorName.toLowerCase().includes(query)
-      );
+    if (query) {
+      result = result.filter((app) => {
+        const sectorName = sectors[app.sector_id] || '';
+        return (
+          app.id.toLowerCase().includes(query) ||
+          app.project_name.toLowerCase().includes(query) ||
+          app.status.toLowerCase().includes(query) ||
+          sectorName.toLowerCase().includes(query)
+        );
+      });
+    }
+
+    return result;
+  }, [applications, searchTerm, statusFilter, sectors]);
+
+  const statusCounts = useMemo(() => {
+    const counts = { ALL: applications.length, DRAFT: 0, SUBMITTED: 0, EDS: 0 };
+    applications.forEach((app) => {
+      if (counts[app.status] !== undefined) counts[app.status]++;
     });
-  }, [applications, searchTerm, sectors]);
+    return counts;
+  }, [applications]);
 
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-slate-50">
@@ -91,10 +101,10 @@ const ApplicationDataTable = () => {
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-8">
             <Link className="flex items-center gap-4 text-primary" to="/pp/dashboard">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-                <span className="material-symbols-outlined text-primary">account_balance</span>
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-white">
+                <span className="material-symbols-outlined">eco</span>
               </div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-900">GovPortal</h2>
+              <h2 className="text-lg font-bold tracking-tight text-slate-900">PARIVESH 3.0</h2>
             </Link>
             <nav className="hidden items-center gap-6 md:flex">
               <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/dashboard">
@@ -102,6 +112,9 @@ const ApplicationDataTable = () => {
               </Link>
               <Link className="border-b-2 border-primary py-1 text-sm font-semibold text-primary" to="/pp/applications">
                 Applications
+              </Link>
+              <Link className="text-sm font-medium text-slate-600 transition-colors hover:text-primary" to="/pp/new-application">
+                New Application
               </Link>
             </nav>
           </div>
@@ -123,9 +136,13 @@ const ApplicationDataTable = () => {
       <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col px-4 py-8 md:px-10">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">Application Registry</h1>
+            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">
+              {isAdmin ? 'Global Application Registry' : 'Application Registry'}
+            </h1>
             <p className="text-base text-slate-500">
-              Live project proponent records from the backend application service.
+              {isAdmin 
+                ? 'Viewing all system applications across all proponents.' 
+                : 'Click any row to view details and manage your application.'}
             </p>
           </div>
           <Link
@@ -138,18 +155,24 @@ const ApplicationDataTable = () => {
         </div>
 
         <div className="mb-6 flex flex-wrap gap-2">
-          <div className="rounded-full bg-primary px-4 py-2 text-xs font-bold text-white">
-            All Applications ({applications.length})
-          </div>
-          <div className="rounded-full bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700">
-            Drafts ({applications.filter((application) => application.status === 'DRAFT').length})
-          </div>
-          <div className="rounded-full bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700">
-            Submitted ({applications.filter((application) => application.status === 'SUBMITTED').length})
-          </div>
-          <div className="rounded-full bg-slate-200 px-4 py-2 text-xs font-bold text-slate-700">
-            Action Required ({applications.filter((application) => application.status === 'EDS').length})
-          </div>
+          {[
+            { key: 'ALL', label: 'All Applications' },
+            { key: 'DRAFT', label: 'Drafts' },
+            { key: 'SUBMITTED', label: 'Submitted' },
+            { key: 'EDS', label: 'Action Required' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`rounded-full px-4 py-2 text-xs font-bold transition-all ${
+                statusFilter === tab.key
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
+              }`}
+            >
+              {tab.label} ({statusCounts[tab.key] || 0})
+            </button>
+          ))}
         </div>
 
         <div className="overflow-hidden rounded-xl border-t-[3px] border-primary bg-white shadow-xl shadow-slate-200/50">
@@ -163,28 +186,36 @@ const ApplicationDataTable = () => {
                   <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400">Category</th>
                   <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400">Created</th>
                   <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400">Status</th>
+                  <th className="p-4 text-xs font-bold uppercase tracking-wider text-slate-400 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {isLoading ? (
                   <tr>
-                    <td className="p-6 text-sm text-slate-500" colSpan="6">
-                      Loading application registry...
+                    <td className="p-6 text-sm text-slate-500" colSpan="7">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                        Loading application registry...
+                      </div>
                     </td>
                   </tr>
                 ) : filteredApplications.length === 0 ? (
                   <tr>
-                    <td className="p-6 text-sm text-slate-500" colSpan="6">
+                    <td className="p-6 text-sm text-slate-500" colSpan="7">
                       No applications matched your search.
                     </td>
                   </tr>
                 ) : (
                   filteredApplications.map((application) => (
-                    <tr className="transition-colors hover:bg-primary/5" key={application.id}>
-                      <td className="p-4 font-mono text-sm text-slate-600">{application.id.slice(0, 8)}</td>
+                    <tr
+                      className="cursor-pointer transition-colors hover:bg-primary/5"
+                      key={application.id}
+                      onClick={() => navigate(`/pp/application/${application.id}`)}
+                    >
+                      <td className="p-4 font-mono text-sm font-semibold text-primary">{application.id.slice(0, 8)}…</td>
                       <td className="p-4">
                         <p className="font-semibold text-slate-800">{application.project_name}</p>
-                        <p className="text-xs text-slate-500">{application.state || 'State pending'}</p>
+                        <p className="text-xs text-slate-500">{application.state || 'Location pending'}</p>
                       </td>
                       <td className="p-4 text-sm text-slate-600">
                         {sectors[application.sector_id] || `Sector #${application.sector_id}`}
@@ -199,6 +230,9 @@ const ApplicationDataTable = () => {
                         >
                           {formatStatus(application.status)}
                         </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <span className="material-symbols-outlined text-lg text-slate-400">chevron_right</span>
                       </td>
                     </tr>
                   ))

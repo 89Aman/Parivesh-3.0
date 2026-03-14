@@ -1,5 +1,5 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
@@ -51,6 +51,9 @@ async def list_applications(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("PP", "RQP")),
 ):
+    is_admin = any(r.name.value == "ADMIN" for r in current_user.roles)
+    if is_admin:
+        return await ApplicationService.list_all(db)
     return await ApplicationService.list_by_owner(db, current_user.id)
 
 
@@ -61,7 +64,9 @@ async def get_application(
     current_user: User = Depends(require_role("PP", "RQP")),
 ):
     app = await ApplicationService.get_by_id(db, app_id)
-    if app.applicant_id != current_user.id:
+    # Check roles - Admins can see everything
+    is_admin = any(r.name.value == "ADMIN" for r in current_user.roles)
+    if not is_admin and app.applicant_id != current_user.id:
         from app.core.exceptions import ForbiddenException
         raise ForbiddenException("Not the owner of this application")
     return app
@@ -105,6 +110,7 @@ async def submit_application(
             break
     app = await ApplicationService.submit(db, app_id, current_user.id, role)
     await db.commit()
+    await db.refresh(app)
     return app
 
 

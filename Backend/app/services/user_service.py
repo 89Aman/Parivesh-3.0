@@ -1,6 +1,7 @@
 import secrets
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
@@ -74,14 +75,18 @@ class UserService:
             organization=organization,
             phone=phone,
         )
-        db.add(user)
-        await db.flush()
-
-        role = await db.execute(select(Role).filter(Role.name == default_role))
-        role = role.scalars().first()
-        if role:
-            db.add(UserRole(user_id=user.id, role_id=role.id))
+        try:
+            db.add(user)
             await db.flush()
+
+            role = await db.execute(select(Role).filter(Role.name == default_role))
+            role = role.scalars().first()
+            if role:
+                db.add(UserRole(user_id=user.id, role_id=role.id))
+                await db.flush()
+        except IntegrityError:
+            await db.rollback()
+            return await UserService.get_by_email(db, email)
 
         return await UserService.get_by_id(db, user.id)
 
@@ -137,6 +142,82 @@ class UserService:
         return await UserService.get_by_id(db, user_id)
 
     @staticmethod
+    async def set_single_role(db: AsyncSession, user_id, role_name: str, actor_id=None) -> User:
+        user = await UserService.get_by_id(db, user_id)
+        if not user:
+            raise NotFoundException("User")
+
+        try:
+            role_enum = UserRoleEnum(role_name)
+        except ValueError:
+            raise BadRequestException(f"Invalid role: {role_name}")
+
+        role = await db.execute(select(Role).filter(Role.name == role_enum))
+        role = role.scalars().first()
+        if not role:
+            raise NotFoundException("Role")
+
+        # Remove all existing role mappings first to enforce one role per user.
+        existing_user_roles = await db.execute(select(UserRole).filter(UserRole.user_id == user.id))
+        for user_role in existing_user_roles.scalars().all():
+            await db.delete(user_role)
+
+        db.add(UserRole(user_id=user.id, role_id=role.id))
+
+        audit = AuditLog(
+            actor_id=actor_id,
+            actor_role="ADMIN",
+            action="ROLE_SET_SINGLE",
+            description=f"Set role {role_name} for user {user.email}",
+            entity_type="USER",
+            entity_id=str(user.id),
+        )
+        db.add(audit)
+        await db.flush()
+        return await UserService.get_by_id(db, user_id)
+
+    @staticmethod
+    async def update_user(
+        db: AsyncSession,
+        user_id: str,
+        *,
+        full_name: str | None = None,
+        organization: str | None = None,
+        phone: str | None = None,
+        role_name: str | None = None,
+        actor_id: str | None = None,
+    ) -> User:
+        user = await UserService.get_by_id(db, user_id)
+        if not user:
+            raise NotFoundException("User")
+
+        if full_name is not None:
+            user.full_name = full_name
+        if organization is not None:
+            user.organization = organization
+        if phone is not None:
+            user.phone = phone
+
+        db.add(user)
+        await db.flush()
+
+        if role_name:
+            user = await UserService.set_single_role(db, user_id, role_name, actor_id=actor_id)
+
+        audit = AuditLog(
+            actor_id=actor_id,
+            actor_role="ADMIN",
+            action="USER_UPDATE",
+            description=f"Updated user {user.email}",
+            entity_type="USER",
+            entity_id=str(user.id),
+        )
+        db.add(audit)
+        await db.flush()
+
+        return await UserService.get_by_id(db, user_id)
+
+    @staticmethod
     async def remove_role(db: AsyncSession, user_id, role_name: str, actor_id=None) -> User:
         user = await UserService.get_by_id(db, user_id)
         if not user:
@@ -172,3 +253,24 @@ class UserService:
         db.add(audit)
         await db.flush()
         return await UserService.get_by_id(db, user_id)
+
+    @staticmethod
+    async def delete_user(db: AsyncSession, user_id: str, actor_id: str | None = None) -> bool:
+        """Permanently delete a user."""
+        user = await UserService.get_by_id(db, user_id)
+        if not user:
+            raise NotFoundException("User")
+
+        await db.delete(user)
+
+        audit = AuditLog(
+            actor_id=actor_id,
+            actor_role="ADMIN",
+            action="USER_DELETE",
+            description=f"Deleted user {user.email}",
+            entity_type="USER",
+            entity_id=str(user.id),
+        )
+        db.add(audit)
+        await db.flush()
+        return True

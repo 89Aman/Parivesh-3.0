@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
+import { supabase } from '../supabase';
 import authService, { getDefaultRouteForUser } from '../services/authService';
 import { getApiErrorMessage } from '../services/api';
 
@@ -11,44 +12,79 @@ const AuthCallback = () => {
 
   useEffect(() => {
     let isActive = true;
+    let hasCompleted = false;
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+
+    const complete = (user) => {
+      if (!isActive || !user || hasCompleted) {
+        return;
+      }
+
+      hasCompleted = true;
+      clearTimeout(timeout);
+      toast.success('Signed in successfully.');
+      navigate(getDefaultRouteForUser(user), { replace: true });
+    };
 
     const finishOAuth = async () => {
-      const oauthError = searchParams.get('error_description') || searchParams.get('error');
+      const oauthError =
+        searchParams.get('error_description') ||
+        searchParams.get('error') ||
+        hashParams.get('error_description') ||
+        hashParams.get('error');
+
       if (oauthError) {
         toast.error(oauthError);
         navigate('/login', { replace: true });
         return;
       }
 
-      const code = searchParams.get('code');
-      if (!code) {
-        toast.error('No OAuth authorization code was returned.');
-        navigate('/login', { replace: true });
+      const user = await authService.completeOAuthCallback();
+      complete(user);
+    };
+
+    const timeout = setTimeout(() => {
+      if (!isActive) {
+        return;
+      }
+
+      toast.error('Google sign-in session was not established.');
+      navigate('/login', { replace: true });
+    }, 8000);
+
+    finishOAuth().catch((error) => {
+      if (!isActive) {
+        return;
+      }
+
+      toast.error(getApiErrorMessage(error, 'Unable to complete Google sign-in.'));
+      navigate('/login', { replace: true });
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event) => {
+      if (!isActive) {
+        return;
+      }
+
+      if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION' && event !== 'TOKEN_REFRESHED') {
         return;
       }
 
       try {
-        const user = await authService.completeOAuthCallback(code);
-        if (!isActive || !user) {
-          return;
-        }
-
-        toast.success('Signed in successfully.');
-        navigate(getDefaultRouteForUser(user), { replace: true });
+        const user = await authService.completeOAuthCallback();
+        complete(user);
       } catch (error) {
-        if (!isActive) {
-          return;
-        }
-
         toast.error(getApiErrorMessage(error, 'Unable to complete Google sign-in.'));
         navigate('/login', { replace: true });
       }
-    };
-
-    finishOAuth();
+    });
 
     return () => {
       isActive = false;
+      clearTimeout(timeout);
+      subscription.unsubscribe();
     };
   }, [navigate, searchParams, toast]);
 
