@@ -15,3 +15,9 @@ class DocumentOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class DocumentCreate(BaseModel):
+    name: str
+    file_path: str
+    mime_type: Optional[str] = None

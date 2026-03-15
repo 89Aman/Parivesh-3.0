@@ -57,6 +57,14 @@ const formatDraftTimestamp = (value) => {
 
 const hasAnyFormValue = (formData) => Object.values(formData).some((value) => String(value || '').trim());
 
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error(`Unable to read file: ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+
 const inferChecklistCategoryFromSector = (sectorName) => {
   const normalized = String(sectorName || '').trim().toLowerCase();
   if (!normalized) return '';
@@ -86,6 +94,7 @@ const PPPortalNewApplicationForm = () => {
   const [selectedChecklistCategory, setSelectedChecklistCategory] = useState('');
   const [checklistItems, setChecklistItems] = useState([]);
   const [isLoadingChecklist, setIsLoadingChecklist] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState([]);
 
   useEffect(() => {
     const storedDraft = window.sessionStorage.getItem(DRAFT_STORAGE_KEY);
@@ -227,10 +236,45 @@ const PPPortalNewApplicationForm = () => {
 
   const handleClearLocalDraft = () => {
     setFormData(initialFormState);
+    setSelectedDocuments([]);
     setRestoredDraftAt('');
     setLastSavedAt('');
     window.sessionStorage.removeItem(DRAFT_STORAGE_KEY);
     toast.info('Local draft cleared.');
+  };
+
+  const handleDocumentSelection = (event) => {
+    const fileList = Array.from(event.target.files || []);
+    if (!fileList.length) {
+      return;
+    }
+
+    const dedupe = new Set(selectedDocuments.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+    const nextDocuments = [...selectedDocuments];
+
+    fileList.forEach((file) => {
+      const fingerprint = `${file.name}-${file.size}-${file.lastModified}`;
+      if (!dedupe.has(fingerprint)) {
+        dedupe.add(fingerprint);
+        nextDocuments.push(file);
+      }
+    });
+
+    setSelectedDocuments(nextDocuments);
+    event.target.value = '';
+  };
+
+  const handleRemoveDocument = (fileToRemove) => {
+    setSelectedDocuments((current) =>
+      current.filter(
+        (file) =>
+          !(
+            file.name === fileToRemove.name &&
+            file.size === fileToRemove.size &&
+            file.lastModified === fileToRemove.lastModified
+          )
+      )
+    );
   };
 
   const handleSubmit = async (event) => {
@@ -249,8 +293,34 @@ const PPPortalNewApplicationForm = () => {
         project_area_ha: formData.project_area_ha ? Number(formData.project_area_ha) : null,
       });
 
+      let uploadFailures = 0;
+      if (selectedDocuments.length > 0) {
+        const uploadResults = await Promise.allSettled(
+          selectedDocuments.map(async (file) => {
+            const filePathData = await fileToDataUrl(file);
+            return applicationService.uploadApplicationDocument(created.id, {
+              name: file.name,
+              file_path: filePathData,
+              mime_type: file.type || null,
+            });
+          })
+        );
+
+        uploadFailures = uploadResults.filter((result) => result.status === 'rejected').length;
+      }
+
       window.sessionStorage.removeItem(DRAFT_STORAGE_KEY);
-      toast.success('Application draft created.');
+      if (selectedDocuments.length === 0) {
+        toast.success('Application draft created.');
+      } else if (uploadFailures === 0) {
+        toast.success(`Application draft created with ${selectedDocuments.length} uploaded document(s).`);
+      } else {
+        const successCount = selectedDocuments.length - uploadFailures;
+        toast.error(
+          `Application created. ${successCount} document(s) uploaded, ${uploadFailures} failed. You can retry from application details.`
+        );
+      }
+
       navigate(ROUTES.PP_APPLICATION_DETAIL.replace(':appId', created.id), {
         replace: true,
         state: { fromCreate: true },
@@ -456,6 +526,51 @@ const PPPortalNewApplicationForm = () => {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  )}
+                </div>
+
+                <div className="md:col-span-2 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-700">Upload Supporting Documents</p>
+                    <p className="mt-1 text-sm text-slate-500">Attach files now so they are uploaded right after the draft is created.</p>
+                  </div>
+
+                  <label className="mb-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-primary/25 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10" htmlFor="pp-documents-upload">
+                    <span className="material-symbols-outlined text-[18px]">upload_file</span>
+                    Choose Files
+                  </label>
+                  <input
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+                    className="hidden"
+                    id="pp-documents-upload"
+                    multiple
+                    onChange={handleDocumentSelection}
+                    type="file"
+                  />
+
+                  {selectedDocuments.length === 0 ? (
+                    <p className="text-sm text-slate-500">No files selected yet.</p>
+                  ) : (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50">
+                      {selectedDocuments.map((file) => (
+                        <div
+                          key={`${file.name}-${file.size}-${file.lastModified}`}
+                          className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 text-sm last:border-b-0"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-slate-800">{file.name}</p>
+                            <p className="text-xs text-slate-500">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
+                          </div>
+                          <button
+                            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                            onClick={() => handleRemoveDocument(file)}
+                            type="button"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>

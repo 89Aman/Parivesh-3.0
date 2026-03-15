@@ -70,6 +70,24 @@ const API_BASE_URL = normalizeLocalApiBaseUrl(import.meta.env.VITE_API_BASE_URL 
 
 const LOCAL_FALLBACK_PORTS = ['8000', '8001'];
 
+const isPrivateIpv4Host = (hostname) => {
+  if (!hostname) return false;
+  if (/^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3}$/.test(hostname)) return true;
+  return false;
+};
+
+const isLocalNetworkHost = (hostname) => {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname === '::1' ||
+    isPrivateIpv4Host(hostname)
+  );
+};
+
 const getErrorDetailText = (error) => {
   const detail = error?.response?.data?.detail;
   if (typeof detail === 'string') return detail.toLowerCase();
@@ -135,15 +153,41 @@ const buildApiBaseUrlFallbacks = (baseUrl) => {
   try {
     parsed = new URL(baseUrl);
   } catch {
-    return [];
+    if (typeof window === 'undefined') {
+      return [];
+    }
+
+    // Resolve relative API base URLs (for example /api/v1) against the page origin
+    // so localhost and loopback fallbacks can still be generated.
+    try {
+      parsed = new URL(baseUrl, window.location.origin);
+    } catch {
+      return [];
+    }
   }
 
   const hostCandidates = [parsed.hostname];
   if (parsed.hostname === 'localhost') hostCandidates.push('127.0.0.1');
   if (parsed.hostname === '127.0.0.1') hostCandidates.push('localhost');
 
-  const portCandidates = [parsed.port || (parsed.protocol === 'https:' ? '443' : '80')];
-  if (LOCAL_FALLBACK_PORTS.includes(parsed.port)) {
+  if (typeof window !== 'undefined') {
+    const currentHost = window.location.hostname;
+    if (currentHost && !hostCandidates.includes(currentHost)) {
+      hostCandidates.push(currentHost);
+    }
+  }
+
+  const resolvedPort = parsed.port || (parsed.protocol === 'https:' ? '443' : '80');
+  const portCandidates = [resolvedPort];
+
+  const shouldAddLocalPorts =
+    LOCAL_FALLBACK_PORTS.includes(parsed.port) ||
+    (typeof window !== 'undefined' &&
+      (window.location.port === '5173' || window.location.port === '4173') &&
+      isLocalNetworkHost(window.location.hostname)) ||
+    isLocalNetworkHost(parsed.hostname);
+
+  if (shouldAddLocalPorts) {
     LOCAL_FALLBACK_PORTS.forEach((port) => {
       if (!portCandidates.includes(port)) {
         portCandidates.push(port);
@@ -245,7 +289,7 @@ export const getApiErrorMessage = (error, fallbackMessage = 'Something went wron
   }
 
   if (isConnectivityError(error)) {
-    return `Cannot connect to backend server. Checked ${API_BASE_URL} with localhost/127.0.0.1 fallback on port 8000.`;
+    return `Cannot connect to backend server. Checked ${API_BASE_URL} with localhost/127.0.0.1 and local-hostname fallbacks on ports 8000/8001.`;
   }
 
   if (error?.response?.status === 429) {

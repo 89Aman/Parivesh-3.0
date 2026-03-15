@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
@@ -10,7 +10,7 @@ from app.schemas.application import (
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
     ApplicationParameterSet, ApplicationParameterOut,
 )
-from app.schemas.document import DocumentOut
+from app.schemas.document import DocumentCreate, DocumentOut
 from app.schemas.payment import PaymentSimulateRequest, PaymentOut
 from app.schemas.eds import EDSRequestOut, EDSResolveRequest
 from app.schemas.user import UserOut, UserUpdate
@@ -157,13 +157,31 @@ async def set_parameters(
 @router.post("/applications/{app_id}/documents", response_model=DocumentOut)
 async def upload_document(
     app_id: UUID,
-    name: str,
-    file_path: str,
-    mime_type: str = None,
+    data: Optional[DocumentCreate] = Body(default=None),
+    name: Optional[str] = None,
+    file_path: Optional[str] = None,
+    mime_type: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_role("PP", "RQP")),
 ):
-    doc = await DocumentService.upload(db, app_id, name, file_path, mime_type, current_user.id)
+    resolved_name = data.name if data else name
+    resolved_file_path = data.file_path if data else file_path
+    resolved_mime_type = data.mime_type if data else mime_type
+
+    if not resolved_name or not resolved_file_path:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="name and file_path are required",
+        )
+
+    doc = await DocumentService.upload(
+        db,
+        app_id,
+        resolved_name,
+        resolved_file_path,
+        resolved_mime_type,
+        current_user.id,
+    )
     await db.commit()
     await db.refresh(doc)
     return doc

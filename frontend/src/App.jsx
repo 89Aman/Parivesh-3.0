@@ -48,8 +48,12 @@ function AppContent() {
   const [showSearch, setShowSearch] = useState(false);
 
   useKeyboardShortcuts({
-    onSearch: () => setShowSearch(true),
-    onHelp: () => setShowHelp(true),
+    onOpenSearch: () => setShowSearch(true),
+    onOpenHelp: () => setShowHelp(true),
+    onCloseAll: () => {
+      setShowSearch(false);
+      setShowHelp(false);
+    }
   });
 
   useEffect(() => {
@@ -70,9 +74,9 @@ function AppContent() {
       <AppErrorBoundary>
         <div className="relative min-h-screen bg-slate-50 font-sans text-slate-900 antialiased selection:bg-primary/10 selection:text-primary">
           <TopProgressBar />
-          <GlobalSearch isOpen={showSearch} onClose={() => setShowSearch(false)} />
-          <KeyboardShortcutsModal isOpen={showHelp} onClose={() => setShowHelp(false)} />
-          
+          {showSearch && <GlobalSearch onClose={() => setShowSearch(false)} />}
+          {showHelp && <KeyboardShortcutsModal onClose={() => setShowHelp(false)} />}
+
           <Suspense fallback={<RouteLoader />}>
             <PageTransition location={location}>
               <Routes>
@@ -109,8 +113,13 @@ function AppContent() {
                       <Routes>
                         <Route path="dashboard" element={<PPPortalDashboard />} />
                         <Route path="apply" element={<PPPortalNewApplicationForm />} />
+                        <Route path="new-application" element={<PPPortalNewApplicationForm />} />
+                        <Route path="applications" element={<ApplicationDataTable />} />
+                        <Route path="application/:appId" element={<ApplicationDetailPage />} />
                         <Route path="compliance" element={<ComplianceTracker />} />
                         <Route path="applications/:id" element={<ApplicationDetailPage />} />
+                        <Route path="workflow/:appId?" element={<ApplicationWorkflowTimeline />} />
+                        <Route path="review/:appId?" element={<ReviewApplicationModal />} />
                         <Route path="*" element={<Navigate to="dashboard" replace />} />
                       </Routes>
                     </PPRoute>

@@ -14,8 +14,7 @@ const STATUS_META = {
   DRAFT:          { dot: 'bg-gray-500',    label: 'bg-gray-500/15 text-gray-400' },
 };
 
-const GlobalSearch = () => {
-  const [open, setOpen] = useState(false);
+const GlobalSearch = ({ onClose }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,26 +25,16 @@ const GlobalSearch = () => {
   const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
-      if (e.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    setFocused(-1);
+    const timer = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    if (open) {
-      setFocused(-1);
-      setTimeout(() => inputRef.current?.focus(), 50);
-    } else {
-      setQuery('');
+    if (!query) {
       setResults([]);
     }
-  }, [open]);
+  }, [query]);
 
   const search = useCallback(async (q) => {
     if (!q.trim() || q.length < 2) { setResults([]); return; }
@@ -66,7 +55,7 @@ const GlobalSearch = () => {
   }, [query, search]);
 
   const handleSelect = (result) => {
-    setOpen(false);
+    onClose?.();
     navigate(ROUTES.PP_APPLICATION_DETAIL.replace(':appId', result.id));
   };
 
@@ -77,11 +66,11 @@ const GlobalSearch = () => {
     if (e.key === 'Enter' && focused >= 0) handleSelect(results[focused]);
   };
 
-  if (!isAuthenticated || !open) return null;
+  if (!isAuthenticated) return null;
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-[12vh]">
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setOpen(false)} />
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
 
       <div className="relative w-full max-w-2xl mx-4 rounded-2xl border border-white/10 bg-[#0b160b] shadow-2xl shadow-black/80 overflow-hidden">
         {/* Glow accent top bar */}

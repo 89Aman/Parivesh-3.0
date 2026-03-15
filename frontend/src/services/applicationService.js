@@ -50,6 +50,26 @@ const applicationService = {
       throw error;
     }
   },
+
+  uploadApplicationDocument: async (appId, documentData) => {
+    try {
+      const response = await api.post(`/pp/applications/${appId}/documents`, documentData);
+      return response.data;
+    } catch (error) {
+      console.error(`Error uploading document for application ${appId}:`, error);
+      throw error;
+    }
+  },
+
+  listApplicationDocuments: async (appId) => {
+    try {
+      const response = await api.get(`/pp/applications/${appId}/documents`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error listing documents for application ${appId}:`, error);
+      throw error;
+    }
+  },
 };
 
 export default applicationService;
