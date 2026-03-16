@@ -5,7 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import ToastProvider, { useToast } from './components/ToastProvider';
 import { ProtectedRoute, AdminRoute, PPRoute, ScrutinyRoute, MoMRoute } from './components/ProtectedRoute';
 import { AUTH_UNAUTHORIZED_EVENT } from './services/api';
-import { LEGACY_ROUTE_ALIASES, ROUTES } from './constants/routes';
+import { LEGACY_ROUTE_ALIASES, ROUTES, ROUTE_PREFIX } from './constants/routes';
 
 import TopProgressBar from './components/TopProgressBar';
 import PageTransition from './components/PageTransition';
@@ -91,7 +91,7 @@ function AppContent() {
 
                 {/* Admin Routes */}
                 <Route
-                  path={`${ROUTES.ADMIN_PREFIX}/*`}
+                  path={`${ROUTE_PREFIX.ADMIN}/*`}
                   element={
                     <AdminRoute>
                       <Routes>
@@ -107,7 +107,7 @@ function AppContent() {
 
                 {/* PP Routes */}
                 <Route
-                  path={`${ROUTES.PP_PREFIX}/*`}
+                  path={`${ROUTE_PREFIX.PP}/*`}
                   element={
                     <PPRoute>
                       <Routes>
