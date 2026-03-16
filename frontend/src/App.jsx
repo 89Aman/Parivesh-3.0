@@ -14,6 +14,7 @@ import useGlobalEffects from './hooks/useGlobalEffects';
 import SimpleSpinner from './components/SimpleSpinner';
 import GlobalSearch from './components/GlobalSearch';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import ThemeToggle from './components/ThemeToggle';
 import useKeyboardShortcuts from './hooks/useKeyboardShortcuts';
 
 const MoMPortalGistMinutesEditor = lazy(() => import('./pages/MoMPortalGistMinutesEditor'));
@@ -74,6 +75,9 @@ function AppContent() {
       <AppErrorBoundary>
         <div className="relative min-h-screen bg-slate-50 font-sans text-slate-900 antialiased selection:bg-primary/10 selection:text-primary">
           <TopProgressBar />
+          <div className="fixed bottom-5 right-5 z-[110]">
+            <ThemeToggle />
+          </div>
           {showSearch && <GlobalSearch onClose={() => setShowSearch(false)} />}
           {showHelp && <KeyboardShortcutsModal onClose={() => setShowHelp(false)} />}
 
