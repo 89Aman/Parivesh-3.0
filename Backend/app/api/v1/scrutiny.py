@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.db import get_db
@@ -12,7 +12,7 @@ from app.schemas.payment import PaymentOut, PaymentSimulateRequest
 from app.schemas.eds import EDSRequestCreate, EDSRequestOut
 from app.schemas.meeting import MeetingCreate, MeetingOut, ReferralRequest, MeetingApplicationOut
 from app.schemas.gist import GistOut
-from app.schemas.document import DocumentOut
+from app.schemas.document import DocumentManualReviewRequest, DocumentOut, DocumentVerificationOut
 from app.services.application_service import ApplicationService
 from app.services.payment_service import PaymentService
 from app.services.eds_service import EDSService
@@ -61,6 +61,40 @@ async def list_application_documents(
     current_user: User = Depends(require_role("SCRUTINY")),
 ):
     return await DocumentService.list_for_application(db, app_id)
+
+
+@router.get("/applications/{app_id}/documents/{doc_id}/verification", response_model=DocumentVerificationOut)
+async def get_application_document_verification(
+    app_id: UUID,
+    doc_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("SCRUTINY")),
+):
+    return await DocumentService.get_verification_for_application_document(db, app_id, doc_id)
+
+
+@router.post("/applications/{app_id}/documents/{doc_id}/review", response_model=DocumentVerificationOut)
+async def review_application_document(
+    app_id: UUID,
+    doc_id: int,
+    data: DocumentManualReviewRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("SCRUTINY")),
+):
+    try:
+        verification = await DocumentService.review_document(
+            db=db,
+            app_id=app_id,
+            doc_id=doc_id,
+            actor_id=current_user.id,
+            actor_role="SCRUTINY",
+            decision=data.decision,
+            notes=data.notes,
+        )
+        await db.commit()
+        return verification
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
 
 
 @router.get("/applications/{app_id}/payment", response_model=Optional[PaymentOut])

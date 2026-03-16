@@ -70,6 +70,16 @@ const applicationService = {
       throw error;
     }
   },
+
+  getDocumentVerification: async (appId, docId) => {
+    try {
+      const response = await api.get(`/pp/applications/${appId}/documents/${docId}/verification`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error getting verification for document ${docId} of application ${appId}:`, error);
+      throw error;
+    }
+  },
 };
 
 export default applicationService;

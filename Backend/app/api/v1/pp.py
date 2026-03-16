@@ -10,7 +10,7 @@ from app.schemas.application import (
     ApplicationCreate, ApplicationUpdate, ApplicationOut,
     ApplicationParameterSet, ApplicationParameterOut,
 )
-from app.schemas.document import DocumentCreate, DocumentOut
+from app.schemas.document import DocumentCreate, DocumentOut, DocumentVerificationOut
 from app.schemas.payment import PaymentSimulateRequest, PaymentOut
 from app.schemas.eds import EDSRequestOut, EDSResolveRequest
 from app.schemas.user import UserOut, UserUpdate
@@ -174,6 +174,12 @@ async def upload_document(
             detail="name and file_path are required",
         )
 
+    verification = DocumentService.verify_payload(
+        resolved_name,
+        resolved_file_path,
+        resolved_mime_type,
+    )
+
     doc = await DocumentService.upload(
         db,
         app_id,
@@ -181,9 +187,11 @@ async def upload_document(
         resolved_file_path,
         resolved_mime_type,
         current_user.id,
+        is_verified=verification["status"] == "verified",
     )
     await db.commit()
     await db.refresh(doc)
+    DocumentService.enqueue_verification(app_id, doc.id)
     return doc
 
 
@@ -194,6 +202,16 @@ async def list_documents(
     current_user: User = Depends(require_role("PP", "RQP")),
 ):
     return await DocumentService.list_for_application(db, app_id)
+
+
+@router.get("/applications/{app_id}/documents/{doc_id}/verification", response_model=DocumentVerificationOut)
+async def get_document_verification(
+    app_id: UUID,
+    doc_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role("PP", "RQP")),
+):
+    return await DocumentService.get_verification_for_application_document(db, app_id, doc_id)
 
 
 # ──── Payment Simulation ────

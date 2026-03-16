@@ -16,6 +16,19 @@ const scrutinyService = {
     return response.data;
   },
 
+  getDocumentVerification: async (appId, docId) => {
+    const response = await api.get(`/scrutiny/applications/${appId}/documents/${docId}/verification`);
+    return response.data;
+  },
+
+  reviewDocument: async (appId, docId, decision, notes = null) => {
+    const response = await api.post(`/scrutiny/applications/${appId}/documents/${docId}/review`, {
+      decision,
+      notes,
+    });
+    return response.data;
+  },
+
   getPaymentDetails: async (appId) => {
     const response = await api.get(`/scrutiny/applications/${appId}/payment`);
     return response.data;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useToast } from '../components/ToastProvider';
 import PariveshBrand from '../components/PariveshBrand';
@@ -18,6 +18,13 @@ const statusConfig = {
 };
 
 const timelineSteps = ['DRAFT', 'SUBMITTED', 'UNDER_SCRUTINY', 'REFERRED', 'MOM_GENERATED', 'FINALIZED'];
+
+const verificationBadgeStyles = {
+  verified: 'bg-emerald-100 text-emerald-700',
+  review_required: 'bg-amber-100 text-amber-700',
+  rejected: 'bg-red-100 text-red-700',
+  pending: 'bg-slate-100 text-slate-600',
+};
 
 const detailFields = [
   'project_name',
@@ -77,6 +84,31 @@ const ApplicationDetailPage = () => {
   const [editData, setEditData] = useState(buildEditState(null));
   const [restoredDraftAt, setRestoredDraftAt] = useState('');
   const [lastAutosavedAt, setLastAutosavedAt] = useState('');
+  const [documentVerifications, setDocumentVerifications] = useState([]);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+
+  const refreshDocumentVerifications = useCallback(async () => {
+    if (!appId || documentVerifications.length === 0) {
+      return;
+    }
+
+    const verificationResults = await Promise.allSettled(
+      documentVerifications.map((doc) => applicationService.getDocumentVerification(appId, doc.id))
+    );
+
+    setDocumentVerifications((prev) =>
+      prev.map((doc, index) => {
+        const next = verificationResults[index];
+        if (next?.status === 'fulfilled') {
+          return {
+            ...doc,
+            verification: next.value,
+          };
+        }
+        return doc;
+      })
+    );
+  }, [appId, documentVerifications]);
 
   useEffect(() => {
     if (location.state?.fromCreate) {
@@ -273,6 +305,78 @@ const ApplicationDetailPage = () => {
       setIsSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    let isActive = true;
+
+    const loadDocumentVerification = async () => {
+      if (!appId) {
+        setDocumentVerifications([]);
+        return;
+      }
+
+      setIsLoadingDocuments(true);
+      try {
+        const docs = await applicationService.listApplicationDocuments(appId);
+        const verificationResults = await Promise.allSettled(
+          docs.map((doc) => applicationService.getDocumentVerification(appId, doc.id))
+        );
+
+        if (!isActive) return;
+
+        const merged = docs.map((doc, index) => {
+          const verification = verificationResults[index];
+          if (verification?.status === 'fulfilled') {
+            return {
+              ...doc,
+              verification: verification.value,
+            };
+          }
+          return {
+            ...doc,
+            verification: {
+              status: doc.is_verified ? 'verified' : 'pending',
+              lifecycle_state: doc.is_verified ? 'Verified' : 'Uploaded',
+              risk_score: doc.is_verified ? 0 : 0.5,
+            },
+          };
+        });
+
+        setDocumentVerifications(merged);
+      } catch {
+        if (!isActive) return;
+        setDocumentVerifications([]);
+      } finally {
+        if (isActive) {
+          setIsLoadingDocuments(false);
+        }
+      }
+    };
+
+    loadDocumentVerification();
+
+    return () => {
+      isActive = false;
+    };
+  }, [appId, app?.status]);
+
+  useEffect(() => {
+    const hasVerifyingDocuments = documentVerifications.some(
+      (doc) => doc.verification?.status === 'verifying'
+    );
+
+    if (!appId || !hasVerifyingDocuments) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      refreshDocumentVerifications();
+    }, 2000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [appId, documentVerifications, refreshDocumentVerifications]);
 
   if (isLoading) {
     return (
@@ -545,6 +649,35 @@ const ApplicationDetailPage = () => {
                 Open workflow view
                 <span className="material-symbols-outlined text-lg">arrow_forward</span>
               </button>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">Document verification</p>
+              {isLoadingDocuments ? (
+                <p className="mt-3 text-sm text-slate-500">Loading document checks...</p>
+              ) : documentVerifications.length === 0 ? (
+                <p className="mt-3 text-sm text-slate-500">No uploaded documents yet.</p>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {documentVerifications.map((doc) => (
+                    <div key={doc.id} className="rounded-2xl bg-slate-50 px-4 py-3">
+                      <p className="truncate text-sm font-semibold text-slate-900">{doc.name}</p>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase ${
+                            verificationBadgeStyles[doc.verification?.status] || verificationBadgeStyles.pending
+                          }`}
+                        >
+                          {doc.verification?.lifecycle_state || 'Uploaded'}
+                        </span>
+                        <span className="text-xs font-medium text-slate-600">
+                          Risk {typeof doc.verification?.risk_score === 'number' ? doc.verification.risk_score.toFixed(2) : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </aside>
         </div>

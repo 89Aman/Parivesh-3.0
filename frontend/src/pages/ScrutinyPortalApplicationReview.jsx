@@ -41,6 +41,18 @@ const formatDateTime = (value) => {
 
 const formatStatus = (status) => (status ? status.replaceAll('_', ' ') : 'N/A');
 
+const verificationBadgeStyles = {
+  verified: 'bg-emerald-100 text-emerald-700',
+  review_required: 'bg-amber-100 text-amber-700',
+  rejected: 'bg-red-100 text-red-700',
+  pending: 'bg-slate-100 text-slate-600',
+};
+
+const formatVerificationStatus = (status) => {
+  if (!status) return 'Pending';
+  return status.replaceAll('_', ' ');
+};
+
 const getQueueDays = (createdAt) => {
   if (!createdAt) return 0;
   const ms = Date.now() - new Date(createdAt).getTime();
@@ -72,6 +84,29 @@ const ScrutinyPortalApplicationReview = () => {
   const [activeAction, setActiveAction] = useState('');
   const [savedDraftMeta, setSavedDraftMeta] = useState(null);
   const [lastDraftSnapshot, setLastDraftSnapshot] = useState(buildDraftSnapshot('', ''));
+
+  const refreshDocumentVerifications = useCallback(async () => {
+    if (!application?.id || documents.length === 0) {
+      return;
+    }
+
+    const verificationResults = await Promise.allSettled(
+      documents.map((doc) => scrutinyService.getDocumentVerification(application.id, doc.id))
+    );
+
+    setDocuments((prev) =>
+      prev.map((doc, index) => {
+        const next = verificationResults[index];
+        if (next?.status === 'fulfilled') {
+          return {
+            ...doc,
+            verification: next.value,
+          };
+        }
+        return doc;
+      })
+    );
+  }, [application?.id, documents]);
 
   const hasUnsavedLocalDraft = useMemo(() => {
     const currentSnapshot = buildDraftSnapshot(remarks, attachedNoteName);
@@ -120,8 +155,30 @@ const ScrutinyPortalApplicationReview = () => {
         }),
       ]);
 
+      const verificationResults = await Promise.allSettled(
+        docs.map((doc) => scrutinyService.getDocumentVerification(appId, doc.id))
+      );
+
+      const docsWithVerification = docs.map((doc, index) => {
+        const verification = verificationResults[index];
+        if (verification?.status === 'fulfilled') {
+          return {
+            ...doc,
+            verification: verification.value,
+          };
+        }
+
+        return {
+          ...doc,
+          verification: {
+            status: doc.is_verified ? 'verified' : 'pending',
+            risk_score: doc.is_verified ? 0 : 0.5,
+          },
+        };
+      });
+
       setApplication(details);
-      setDocuments(docs);
+      setDocuments(docsWithVerification);
       setPayment(paymentDetails);
 
       const savedDraft = localStorage.getItem(`scrutiny_draft_${appId}`);
@@ -220,6 +277,21 @@ const ScrutinyPortalApplicationReview = () => {
     loadSelectedApplication(selectedAppId);
   }, [loadSelectedApplication, selectedAppId]);
 
+  useEffect(() => {
+    const hasVerifyingDocuments = documents.some((doc) => doc.verification?.status === 'verifying');
+    if (!hasVerifyingDocuments || !application?.id) {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      refreshDocumentVerifications();
+    }, 2000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [application?.id, documents, refreshDocumentVerifications]);
+
   const updateApplicationInQueue = (updatedApp) => {
     setApplications((prev) =>
       prev.map((item) => (item.id === updatedApp.id ? { ...item, ...updatedApp } : item))
@@ -304,6 +376,40 @@ const ScrutinyPortalApplicationReview = () => {
       toast.info(`Document path copied: ${doc.file_path}`);
     } catch {
       toast.info(`Document path: ${doc.file_path}`);
+    }
+  };
+
+  const handleDocumentReview = async (doc, decision) => {
+    if (!application?.id || !doc?.id) {
+      return;
+    }
+
+    const notesPrompt =
+      decision === 'rejected'
+        ? 'Add review note for rejection (optional):'
+        : 'Add review note for verification (optional):';
+    const notes = window.prompt(notesPrompt) || null;
+
+    try {
+      const updatedVerification = await scrutinyService.reviewDocument(
+        application.id,
+        doc.id,
+        decision,
+        notes
+      );
+      setDocuments((prev) =>
+        prev.map((item) =>
+          item.id === doc.id
+            ? {
+                ...item,
+                verification: updatedVerification,
+              }
+            : item
+        )
+      );
+      toast.success(`Document marked as ${formatVerificationStatus(updatedVerification.status)}.`);
+    } catch (error) {
+      toast.error(getApiErrorMessage(error, 'Unable to save document review decision.'));
     }
   };
 
@@ -703,15 +809,16 @@ const ScrutinyPortalApplicationReview = () => {
                   <tr className="bg-slate-50">
                     <th className="px-5 py-3 text-[11px] font-bold uppercase text-slate-400">Document</th>
                     <th className="px-5 py-3 text-[11px] font-bold uppercase text-slate-400">Uploaded</th>
+                    <th className="px-5 py-3 text-[11px] font-bold uppercase text-slate-400">Verification</th>
                     <th className="px-5 py-3 text-[11px] font-bold uppercase text-slate-400 text-right">Action</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {isDetailsLoading ? (
-                    <tr><td colSpan="3" className="px-5 py-4"><SkeletonText lines={3} /></td></tr>
+                    <tr><td colSpan="4" className="px-5 py-4"><SkeletonText lines={3} /></td></tr>
                   ) : documents.length === 0 ? (
                     <tr>
-                      <td className="px-5 py-4 text-sm text-slate-500" colSpan="3">
+                      <td className="px-5 py-4 text-sm text-slate-500" colSpan="4">
                         No documents uploaded for this application.
                       </td>
                     </tr>
@@ -720,15 +827,45 @@ const ScrutinyPortalApplicationReview = () => {
                       <tr key={doc.id}>
                         <td className="px-5 py-4 text-sm font-medium text-slate-800">{doc.name}</td>
                         <td className="px-5 py-4 text-xs text-slate-500">{formatDate(doc.uploaded_at)}</td>
+                        <td className="px-5 py-4 text-xs">
+                          <div className="flex flex-col gap-1">
+                            <span
+                              className={`inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                                verificationBadgeStyles[doc.verification?.status] || verificationBadgeStyles.pending
+                              }`}
+                            >
+                              {formatVerificationStatus(doc.verification?.status)}
+                            </span>
+                            <span className="text-slate-500">
+                              Risk: {typeof doc.verification?.risk_score === 'number' ? doc.verification.risk_score.toFixed(2) : 'N/A'}
+                            </span>
+                          </div>
+                        </td>
                         <td className="px-5 py-4 text-right">
-                          <button
-                            className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
-                            onClick={() => handleDocumentAction(doc)}
-                            type="button"
-                          >
-                            <span className="material-symbols-outlined text-base">visibility</span>
-                            View
-                          </button>
+                          <div className="ml-auto flex items-center justify-end gap-2">
+                            <button
+                              className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline"
+                              onClick={() => handleDocumentAction(doc)}
+                              type="button"
+                            >
+                              <span className="material-symbols-outlined text-base">visibility</span>
+                              View
+                            </button>
+                            <button
+                              className="rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100"
+                              onClick={() => handleDocumentReview(doc, 'verified')}
+                              type="button"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              className="rounded border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-bold text-red-700 hover:bg-red-100"
+                              onClick={() => handleDocumentReview(doc, 'rejected')}
+                              type="button"
+                            >
+                              Reject
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
